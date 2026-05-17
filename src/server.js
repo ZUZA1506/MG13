@@ -1118,37 +1118,8 @@ app.get("/api/bootstrap", requireAuth, (req, res) => {
   });
 });
 
-app.get("/api/public-bootstrap", (req, res) => {
-  const db = readDb();
-  const publicActor = db.users.find((user) => !user.terminated && ["IT-Leitung", "IT"].includes(user.role)) || db.users.find((user) => !user.terminated);
-  const sortedUsers = [...db.users].filter((user) => !user.terminated).sort((a, b) => b.rank - a.rank || a.lastName.localeCompare(b.lastName));
-  const archivedUsers = [...db.users].filter((user) => user.terminated).sort((a, b) => new Date(b.termination?.terminatedAt || b.updatedAt || 0) - new Date(a.termination?.terminatedAt || a.updatedAt || 0));
-  res.json({
-    currentUser: publicUser(publicActor),
-    users: sortedUsers.map(publicUser),
-    archivedUsers: archivedUsers.map(publicUser),
-    ranks: db.settings.ranks,
-    roles,
-    departmentPositions,
-    settings: publicSettings(db.settings),
-    customPages: db.settings.customPages || [],
-    departments: db.settings.departments.map((department) => publicDepartment(department, db, publicActor)),
-    notes: [...db.notes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    dutyHistory: (db.dutyHistory || []).map((entry) => ({
-      ...entry,
-      user: publicUser(db.users.find((user) => user.id === entry.userId))
-    })),
-    logs: (db.logs || []).slice(0, 1000),
-    disciplinary: db.disciplinary || [],
-    duty: db.duty.map((entry) => ({
-      ...entry,
-      user: publicUser(db.users.find((user) => user.id === entry.userId))
-    }))
-  });
-});
-
-app.post("/api/fights", (req, res) => {
-  const db = readDb();
+app.post("/api/fights", requireAuth, (req, res) => {
+  const db = req.db;
   const type = String(req.body.type || "").trim();
   const opponent = String(req.body.opponent || "").trim();
   const dateTime = String(req.body.dateTime || "").trim();
@@ -1163,8 +1134,8 @@ app.post("/api/fights", (req, res) => {
   res.status(201).json({ fight, settings: publicSettings(db.settings) });
 });
 
-app.patch("/api/fights/:id", (req, res) => {
-  const db = readDb();
+app.patch("/api/fights/:id", requireAuth, (req, res) => {
+  const db = req.db;
   const fights = normalizeFights(db.settings.fights);
   const fight = fights.find((item) => item.id === req.params.id);
   if (!fight) return res.status(404).json({ error: "Fight nicht gefunden." });
@@ -1182,15 +1153,15 @@ app.patch("/api/fights/:id", (req, res) => {
   res.json({ fight: patch, settings: publicSettings(db.settings) });
 });
 
-app.delete("/api/fights/:id", (req, res) => {
-  const db = readDb();
+app.delete("/api/fights/:id", requireAuth, (req, res) => {
+  const db = req.db;
   db.settings.fights = normalizeFights(db.settings.fights).filter((fight) => fight.id !== req.params.id);
   writeDb(db);
   res.json({ ok: true, settings: publicSettings(db.settings) });
 });
 
-app.post("/api/factions", (req, res) => {
-  const db = readDb();
+app.post("/api/factions", requireAuth, requireRole("IT"), (req, res) => {
+  const db = req.db;
   const name = String(req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "Fraktionsname ist erforderlich." });
   db.settings.gangFactions = normalizeGangFactions([...(db.settings.gangFactions || []), name]);
@@ -1198,8 +1169,8 @@ app.post("/api/factions", (req, res) => {
   res.status(201).json({ settings: publicSettings(db.settings) });
 });
 
-app.delete("/api/factions/:name", (req, res) => {
-  const db = readDb();
+app.delete("/api/factions/:name", requireAuth, requireRole("IT"), (req, res) => {
+  const db = req.db;
   const name = String(req.params.name || "").trim().toLowerCase();
   db.settings.gangFactions = normalizeGangFactions(db.settings.gangFactions).filter((item) => item.toLowerCase() !== name);
   writeDb(db);

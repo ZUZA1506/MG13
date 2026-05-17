@@ -9676,7 +9676,7 @@ function fightResultClass(result) {
 }
 
 async function bootstrap() {
-  const data = await api(state.token ? "/api/bootstrap" : "/api/public-bootstrap", { silent: true });
+  const data = await api("/api/bootstrap", { silent: true });
   Object.assign(state, data);
   warmAvatarCache();
   syncDevModeAuthStorage();
@@ -9689,22 +9689,25 @@ async function bootstrap() {
 }
 
 function showLogin() {
-  state.token = null;
-  bootstrap().catch((error) => {
-    $("#loadingView")?.classList.add("hidden");
-    $("#loginView").classList.add("hidden");
-    $("#appView").classList.remove("hidden");
-    content.innerHTML = `<section class="panel"><h3>Dashboard konnte nicht geladen werden</h3><p class="muted">${escapeHtml(error.message)}</p></section>`;
-  });
+  $("#loadingView")?.classList.add("hidden");
+  $("#loginView").classList.remove("hidden");
+  $("#appView").classList.add("hidden");
 }
 
 function getVisiblePages() {
   const departmentNav = (state.departments || [])
     .filter((department) => department.id !== "direktion" && department.canOpen)
     .map((department) => `dept:${department.id}`);
-  const mainPages = ["Dashboard", "Fight", "Informationen", "Mitglieder", "Mitgliederfluktation", "Changelog", "Postfach", "Profil", "Kalender"];
-  const admin = hasRole("IT") || !state.token ? ["IT"] : [];
-  return [...mainPages, ...admin, ...departmentNav.filter(canSeeDepartment)];
+  const hiddenPolicePages = new Set(["Dienstblatt", "Einsatzzentrale", "Beschlagnahmung", "Meine Lernkontrollen", "Abteilungen"]);
+  const basePages = [
+    "Dashboard",
+    "Fight",
+    ...pages.filter((page) => !hiddenPolicePages.has(page)).filter(canSeeDepartment),
+    ...adminPages.filter(canSeeDepartment),
+    ...(state.customPages || []).map((page) => page.key).filter(canSeeDepartment),
+    ...departmentNav.filter(canSeeDepartment)
+  ];
+  return [...new Set(basePages)];
 }
 
 function navLabel(page) {
@@ -9758,7 +9761,8 @@ function renderPage() {
   if (state.page === "Kalender") return renderCalendar();
   if (state.page === "Informationen") return renderInformation();
   if (state.page === "Postfach") return renderPostfach();
-  if (state.page === "IT") return renderGangIT();
+  if (state.page === "IT") return renderIT();
+  if (state.page === "Direktion") return renderDirektion();
   if (isDepartmentPage(state.page)) return renderDepartmentPage(departmentByPage(state.page));
   if (state.page === "Profil") return renderProfile();
   return renderTemplate(state.page);
@@ -9926,6 +9930,60 @@ function renderGangIT() {
       const data = await api(`/api/factions/${encodeURIComponent(button.dataset.name)}`, { method: "DELETE" });
       state.settings = data.settings;
       renderGangIT();
+    }
+  })));
+}
+
+const renderFullIT = renderIT;
+renderIT = function renderITWithFightFactions() {
+  renderFullIT();
+  const workbench = content.querySelector(".it-workbench") || content;
+  workbench.insertAdjacentHTML("afterbegin", `
+    <section class="panel it-section gang-faction-admin">
+      <div class="panel-header">
+        <div>
+          <h3>Fight Fraktionen</h3>
+          <p class="muted">Gegner-Auswahl fuer den Fight-Reiter verwalten.</p>
+        </div>
+        <button class="blue-btn" id="addFactionBtn">${iconSvg("Plus")} Fraktion anlegen</button>
+      </div>
+      <div class="edit-list">${gangFactions().map((name) => `
+        <div class="edit-row faction-row">
+          <span class="edit-name">${escapeHtml(name)}</span>
+          <button class="mini-icon danger delete-faction" data-name="${escapeHtml(name)}">${actionIcon("delete")}</button>
+        </div>
+      `).join("") || `<p class="muted">Noch keine Fraktionen angelegt.</p>`}</div>
+    </section>
+  `);
+  bindGangFactionAdmin();
+};
+
+function bindGangFactionAdmin() {
+  $("#addFactionBtn")?.addEventListener("click", () => openModal(`
+    <h3>Fraktion anlegen</h3>
+    <label>Name<input id="newFactionName" placeholder="Name der Fraktion"></label>
+    <p id="modalError" class="form-error"></p>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button><button class="blue-btn" id="saveFaction">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveFaction").addEventListener("click", async () => {
+      try {
+        const data = await api("/api/factions", { method: "POST", body: JSON.stringify({ name: $("#newFactionName").value }) });
+        state.settings = data.settings;
+        closeModal();
+        renderIT();
+      } catch (error) {
+        $("#modalError").textContent = error.message;
+      }
+    });
+  }));
+  document.querySelectorAll(".delete-faction").forEach((button) => button.addEventListener("click", () => openConfirmModal({
+    title: "Fraktion loeschen",
+    text: `${button.dataset.name} wirklich loeschen?`,
+    confirmText: "Loeschen",
+    onConfirm: async () => {
+      const data = await api(`/api/factions/${encodeURIComponent(button.dataset.name)}`, { method: "DELETE" });
+      state.settings = data.settings;
+      renderIT();
     }
   })));
 }
