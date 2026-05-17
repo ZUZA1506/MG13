@@ -77,7 +77,7 @@ const state = {
   customPages: [],
   page: localStorage.getItem("lspd_page") || "Dashboard",
   directionTab: localStorage.getItem("lspd_direction_tab") || "overview",
-  profileTab: localStorage.getItem("lspd_profile_tab") || "Ausbildung",
+  profileTab: localStorage.getItem("lspd_profile_tab") || "Account",
   departmentTabs: JSON.parse(localStorage.getItem("lspd_department_tabs") || "{}")
 };
 
@@ -118,11 +118,7 @@ const pageIcons = {
 
 const adminPages = ["IT", "Direktion"];
 const positionOrder = { "Direktion": 5, "Leitung": 4, "Stv. Leitung": 3, "Mitglied": 2, "Anwärter": 1 };
-const trainingGroups = [
-  ["EST", "Wissen", "Fahren", "Schießen", "Verhalten", "Undercover", "Wanted"],
-  ["EL", "Officer Prüfung", "Prak. VHF", "Prak. EL I", "Führung", "Prak. EL II"],
-  ["Air Support", "Riot", "Coquette"]
-];
+const trainingGroups = [];
 const trainings = trainingGroups.flat();
 const expandedDepartments = new Set(JSON.parse(localStorage.getItem("lspd_expanded_departments") || "[]"));
 let calendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -161,6 +157,13 @@ const content = $("#content");
 const modalRoot = $("#modalRoot");
 const notifyRoot = $("#notifyRoot");
 const warmedAvatarUrls = new Set();
+
+function appLabel(value) {
+  return String(value || "")
+    .replaceAll("Direktion", "Leader")
+    .replaceAll("Beförderung", "Uprank")
+    .replaceAll("Befördern", "Upranken");
+}
 
 function warmAvatarCache() {
   ["/assets/lspd-logo-20260515.png", ...(state.users || []).map((user) => user.avatarUrl).filter(Boolean)].forEach((url) => {
@@ -276,6 +279,8 @@ function iconSvg(page) {
     "Fight": '<path d="M14.5 4.5 19 9l-9.5 9.5H5v-4.5L14.5 4.5Z"/><path d="m13 6 5 5"/><path d="M4 20h16"/>',
     "Trophy": '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/>',
     "Skull": '<path d="M12 3a8 8 0 0 0-8 8c0 3 2 5 4 6v3h8v-3c2-1 4-3 4-6a8 8 0 0 0-8-8Z"/><path d="M9 11h.01M15 11h.01M10 16h4"/>',
+    "XCircle": '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
+    "MinusCircle": '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
     "Spot": '<path d="M12 21s7-5.1 7-11a7 7 0 0 0-14 0c0 5.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/>',
     "Einsatzzentrale": '<path d="M4 12a8 8 0 0 1 16 0"/><path d="M7 12a5 5 0 0 1 10 0"/><path d="M12 12v5"/><path d="M9 17h6"/>',
     "Beschlagnahmung": '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12 4.5 7.7M12 12l7.5-4.3M12 12v8.5"/>',
@@ -372,7 +377,7 @@ function roleBadges(user) {
   const baseRole = user?.baseRole || (["IT", "IT-Leitung"].includes(user?.role) ? "Direktion" : user?.role || "User");
   const roles = user?.role === "IT-Leitung" ? [baseRole, "IT", "IT-Leitung"] : user?.role === "IT" ? [baseRole, "IT"] : [baseRole];
   if (user?.teamler) roles.push("Teamler");
-  return roles.map((role) => `<span class="role-pill ${roleClass(role)}">${escapeHtml(role)}</span>`).join("");
+  return roles.map((role) => `<span class="role-pill ${roleClass(role)}">${escapeHtml(appLabel(role))}</span>`).join("");
 }
 
 function cleanText(value) {
@@ -1043,7 +1048,7 @@ function renderMembers() {
         <span class="muted">${rows.length} Einträge</span>
       </div>
       <div class="filter-row members-search-row">
-        <input id="membersSearch" value="${escapeHtml(search)}" placeholder="Mitglied, DN, Rang oder Ausbildung suchen">
+        <input id="membersSearch" value="${escapeHtml(search)}" placeholder="Mitglied, Telefon oder Rang suchen">
       </div>
       <div class="table-wrap">
         <table class="members-table">
@@ -1051,11 +1056,9 @@ function renderMembers() {
             <tr>
               <th class="member-name-col text-left">Name</th>
               <th class="text-center">Telefon</th>
-              <th class="text-left">DN</th>
               <th class="member-rank-col text-center">Rang</th>
               <th class="text-left">Beitritt</th>
-              <th class="text-left">Letzte Beförderung</th>
-              ${trainingGroups.map((group) => group.map((item, index) => `<th class="${index === 0 ? "training-group-start" : ""} text-center">${escapeHtml(item)}</th>`).join("")).join("")}
+              <th class="text-left">Letzter Uprank</th>
             </tr>
           </thead>
           <tbody>
@@ -1063,14 +1066,9 @@ function renderMembers() {
               <tr class="filterable-row ${user.id === state.currentUser?.id ? "member-row-self" : ""}">
                 <td class="member-name-col text-left"><span class="member-name member-name-wrap">${avatarMarkup(user, "sm")}<span>${wrapNameForTable(fullName(user))}</span></span></td>
                 <td class="text-center">${escapeHtml(user.phone)}</td>
-                <td class="text-left">${escapeHtml(user.dn)}</td>
                 <td class="member-rank-col text-center"><span class="rank-number" data-rank-label="${escapeHtml(rankLabel(user.rank))}">${escapeHtml(user.rank)}</span></td>
                 <td class="text-left">${formatDate(user.joinedAt)}</td>
                 <td class="text-left">${formatDate(user.lastPromotionAt)}</td>
-                ${trainingGroups.map((group) => group.map((training) => {
-                  const hasTraining = Boolean(user.trainings?.[training]);
-                  return `<td class="text-center ${hasTraining ? "training-yes" : "training-no"}">${hasTraining ? "✓" : "X"}</td>`;
-                }).join("")).join("")}
               </tr>
             `).join("")}
           </tbody>
@@ -1327,7 +1325,7 @@ function openDeleteInformationConfirm(key, id, title = "Eintrag löschen?") {
 
 function renderDirektion() {
   if (!canSeeDepartment("Direktion")) {
-    content.innerHTML = `<section class="panel"><h3>Kein Zugriff</h3><p class="muted">Dieser Bereich ist nur für die Direktion sichtbar.</p></section>`;
+    content.innerHTML = `<section class="panel"><h3>Kein Zugriff</h3><p class="muted">Dieser Bereich ist nur für Leader sichtbar.</p></section>`;
     return;
   }
   const directionDepartment = state.departments.find((department) => department.id === "direktion");
@@ -1339,17 +1337,17 @@ function renderDirektion() {
   const monthFineAmount = monthFines.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const tabs = [
     ["overview", "Übersicht"],
+    ["attendance", "Anwesenheit"],
     ["members", "Mitglieder Verwaltung"],
     ["fluctuation", "Mitgliederfluktation"],
     ["upranks", "Upranks"],
     ["uprankRules", "Uprank Voraussetzungen"],
-    ["hours", "Dienstzeiten"],
     ["logs", "Logs"]
   ];
 
   content.innerHTML = `
     <section class="internal-subhead department-overview-head">
-      <h2>Direktion Abteilung</h2>
+      <h2>Leader</h2>
       <div class="department-control-row">
         <div class="tabs-row direction-tabs">
           ${tabs.map(([id, label]) => `<button class="${state.directionTab === id ? "tab-active" : ""}" data-direction-tab="${id}">${label}</button>`).join("")}
@@ -1361,7 +1359,7 @@ function renderDirektion() {
         <article class="direction-focus-card">
           <span>Mitglieder</span>
           <strong>${state.users.length}</strong>
-          <small>Aktive Mitglieder im Dienstblatt</small>
+          <small>Aktive MG13 Mitglieder</small>
         </article>
         <article class="direction-focus-card muted-card">
           <span>Abmeldungen</span>
@@ -1381,11 +1379,11 @@ function renderDirektion() {
       </div>
       ${renderDirectionDepartmentContent(directionDepartment, directionMembersCount)}
       ` : ""}
+      ${state.directionTab === "attendance" ? renderLeaderAttendancePanel() : ""}
       ${state.directionTab === "members" ? renderDirectionMembersPanel() : ""}
       ${state.directionTab === "fluctuation" ? renderDirectionFluctuationPanel() : ""}
       ${state.directionTab === "upranks" ? renderDirectionUpranksPanel() : ""}
       ${state.directionTab === "uprankRules" ? renderDirectionUprankRulesPanel() : ""}
-      ${state.directionTab === "hours" ? renderDirectionHoursPanel() : ""}
       ${state.directionTab === "logs" ? renderLogsPanel() : ""}
     </section>
   `;
@@ -1398,11 +1396,7 @@ function renderDirektion() {
     });
   });
   $("#createUserBtn")?.addEventListener("click", () => openUserModal());
-  $("#addManualDutyBtn")?.addEventListener("click", openManualDutyModal);
-  $("#hoursUserSelect")?.addEventListener("change", (event) => {
-    localStorage.setItem("lspd_hours_user", event.target.value);
-    renderDirektion();
-  });
+  $("#attendanceSearch")?.addEventListener("input", (event) => localStorage.setItem("mg13_attendance_search", event.target.value));
   document.querySelectorAll(".department-add").forEach((button) => button.addEventListener("click", () => openDepartmentMemberModal(directionDepartment)));
   document.querySelectorAll(".dept-note-add").forEach((button) => button.addEventListener("click", () => openDepartmentNoteModal(directionDepartment)));
   document.querySelectorAll(".user-actions").forEach((button) => button.addEventListener("click", () => openUserActionsModal(state.users.find((user) => user.id === button.dataset.id))));
@@ -1418,7 +1412,7 @@ function renderDirektion() {
   $("#uprankRulesForm")?.addEventListener("submit", saveUprankRules);
   bindFluctuationActions();
   setupTableFilter("#logSearch");
-  setupTableFilter("#hoursSearch");
+  setupTableFilter("#attendanceSearch");
   setupTableFilter("#directionFluctuationSearch");
 }
 
@@ -1448,6 +1442,52 @@ function renderDirectionDepartmentContent(department, memberCount = department?.
   `;
 }
 
+function renderLeaderAttendancePanel() {
+  const search = localStorage.getItem("mg13_attendance_search") || "";
+  const now = new Date();
+  const rows = [...state.users]
+    .filter((user) => !user.terminated)
+    .sort((a, b) => b.rank - a.rank || a.lastName.localeCompare(b.lastName));
+  const presentIds = new Set((state.duty || []).map((entry) => entry.userId));
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 7);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const sumFrom = (userId, from) => dutySumForUser(userId, from);
+  return `
+    <div class="panel department-overview-content leader-attendance-panel">
+      <div class="panel-header">
+        <div>
+          <h3>Anwesenheitsliste</h3>
+          <p class="muted">Schneller Leader-Überblick über aktive und inaktive Mitglieder.</p>
+        </div>
+        <span class="gang-chip green">${presentIds.size} Online</span>
+      </div>
+      <div class="leader-attendance-toolbar">
+        <input id="attendanceSearch" class="compact-input" value="${escapeHtml(search)}" placeholder="Name, Rang, Rolle oder Status suchen">
+        <span>${rows.length} Mitglieder gesamt</span>
+      </div>
+      <div class="leader-attendance-list">
+        ${rows.map((user) => {
+          const active = presentIds.has(user.id);
+          return `
+            <article class="leader-attendance-row filterable-row">
+              <div class="leader-attendance-member">
+                ${avatarMarkup(user, "sm")}
+                <span><strong>${escapeHtml(fullName(user))}</strong><small>${escapeHtml(rankLabel(user.rank))} · ${roleBadges(user)}</small></span>
+              </div>
+              <span class="attendance-status ${active ? "online" : "offline"}">${active ? "Anwesend" : "Abwesend"}</span>
+              <span><b>Heute</b>${formatDuration(sumFrom(user.id, todayStart))}</span>
+              <span><b>Woche</b>${formatDuration(sumFrom(user.id, weekStart))}</span>
+              <span><b>Monat</b>${formatDuration(sumFrom(user.id, monthStart))}</span>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderDirectionMembersPanel() {
   const archiveRows = state.archivedUsers || [];
   return `
@@ -1458,13 +1498,12 @@ function renderDirectionMembersPanel() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Telefon</th><th>DN</th><th>Rang</th><th>Rolle</th><th>Status</th><th>Aktionen</th></tr></thead>
+          <thead><tr><th>Name</th><th>Telefon</th><th>Rang</th><th>Rolle</th><th>Status</th><th>Aktionen</th></tr></thead>
           <tbody>
             ${state.users.map((user) => `
               <tr class="${userStatusRowClass(user)}">
                 <td><strong>${escapeHtml(fullName(user))}</strong><small class="table-subline">Einstellung: ${formatDate(user.joinedAt)}</small></td>
                 <td>${escapeHtml(user.phone)}</td>
-                <td>${escapeHtml(user.dn)}</td>
                 <td>${escapeHtml(rankLabel(user.rank))}</td>
                 <td>${roleBadges(user)}</td>
                 <td>${renderAccountStatus(user)}</td>
@@ -1482,7 +1521,7 @@ function renderDirectionMembersPanel() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Kündigungsgrund</th><th>Alte DN</th><th>Alter Rang</th><th>Alte Ausbildungen</th><th>Entlassen am</th><th>Aktionen</th></tr></thead>
+          <thead><tr><th>Name</th><th>Kündigungsgrund</th><th>Alter Rang</th><th>Entlassen am</th><th>Aktionen</th></tr></thead>
           <tbody>
             ${archiveRows.map((user) => {
               const info = terminationInfo(user);
@@ -1490,9 +1529,7 @@ function renderDirectionMembersPanel() {
               <tr>
                 <td>${escapeHtml(fullName(user))}</td>
                 <td>${escapeHtml(info.reason || "-")}</td>
-                <td>${escapeHtml(info.oldDn || "-")}</td>
                 <td>${escapeHtml(rankLabel(info.oldRank))}</td>
-                <td class="archive-training-list">${renderTrainingSummary(info.oldTrainings)}</td>
                 <td>${formatDateTime(info.terminatedAt)}</td>
                 <td>
                   <div class="button-row">
@@ -1501,7 +1538,7 @@ function renderDirectionMembersPanel() {
                   </div>
                 </td>
               </tr>`;
-            }).join("") || `<tr><td colspan="7" class="muted">Noch keine entlassenen Personen im Archiv.</td></tr>`}
+            }).join("") || `<tr><td colspan="5" class="muted">Noch keine entlassenen Personen im Archiv.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1577,6 +1614,21 @@ function renderTrainingPicker(selectedTrainings = {}) {
           </div>
         </section>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderDepartmentPicker(selectedDepartments = []) {
+  const selected = new Set(selectedDepartments);
+  const departments = (state.departments || []).filter((department) => department.id !== "direktion");
+  return `
+    <div class="department-picker-grid">
+      ${departments.map((department) => `
+        <label class="training-toggle">
+          <input type="checkbox" data-user-department value="${escapeHtml(department.id)}" ${selected.has(department.id) ? "checked" : ""}>
+          <span>${escapeHtml(department.name)}</span>
+        </label>
+      `).join("") || `<span class="muted">Keine Abteilungen angelegt.</span>`}
     </div>
   `;
 }
@@ -1949,7 +2001,6 @@ function renderUprankCard(row, weekStart, monthStart, isSearchMode) {
   const missingItems = [
     row.hiddenSpecialRank ? "nur Sonderfreigabe möglich" : "",
     row.missingDays ? `${row.missingDays} Tage fehlen` : "",
-    row.missingTrainings.length ? `Ausbildungen fehlen: ${row.missingTrainings.join(", ")}` : "",
     row.rule.specialOnly && !row.hasSpecial ? "Sonderuprank-Freigabe fehlt" : ""
   ].filter(Boolean);
   return `
@@ -1961,7 +2012,6 @@ function renderUprankCard(row, weekStart, monthStart, isSearchMode) {
       </div>
       <div class="uprank-facts">
         <span class="requirement-chip ${row.hiddenSpecialRank ? "special" : row.missingDays ? "missing" : "ok"}">${row.hiddenSpecialRank ? "Kein Tages-System" : row.missingDays ? `${row.missingDays} Tage fehlen` : "Dauer erf\u00fcllt"}</span>
-        <span class="requirement-chip ${row.missingTrainings.length ? "missing" : "ok"}">${row.missingTrainings.length ? `Fehlt: ${escapeHtml(row.missingTrainings.join(", "))}` : "Ausbildungen erf\u00fcllt"}</span>
         <span class="requirement-chip ${row.rule.specialOnly || row.hiddenSpecialRank ? "special" : "ok"}">${row.rule.specialOnly || row.hiddenSpecialRank ? "Nur Sonderuprank" : "Regul\u00e4r m\u00f6glich"}</span>
         <span class="requirement-chip ${row.ready ? "ok" : row.needsSpecial ? "special" : ""}">${statusText}</span>
         <span class="requirement-chip">Woche ${weekHours}</span>
@@ -1969,7 +2019,7 @@ function renderUprankCard(row, weekStart, monthStart, isSearchMode) {
         <span class="requirement-chip">${escapeHtml(userAccountStatus(row.user))}</span>
       </div>
       <div class="uprank-actions">
-        ${canRun ? `<button class="blue-btn uprank-run" data-id="${escapeHtml(row.user.id)}" data-special="${row.hasSpecial || row.rule.specialOnly}">${row.ready ? "Befördern" : "Prüfen"}</button>` : isSearchMode ? `<div class="uprank-missing-box"><strong>Prüfen</strong><span>${escapeHtml(missingItems.join(" · ") || "Keine offene Voraussetzung gefunden.")}</span></div>` : ""}
+        ${canRun ? `<button class="blue-btn uprank-run" data-id="${escapeHtml(row.user.id)}" data-special="${row.hasSpecial || row.rule.specialOnly}">${row.ready ? "Upranken" : "Prüfen"}</button>` : isSearchMode ? `<div class="uprank-missing-box"><strong>Prüfen</strong><span>${escapeHtml(missingItems.join(" · ") || "Keine offene Voraussetzung gefunden.")}</span></div>` : ""}
         <button class="ghost-btn uprank-shorten" data-id="${escapeHtml(row.user.id)}">Verk\u00fcrzung</button>
         <button class="orange-btn uprank-special" data-id="${escapeHtml(row.user.id)}">Sonderuprank</button>
       </div>
@@ -1997,14 +2047,6 @@ function renderDirectionUprankRulesPanel() {
               <span class="it-toggle-ui"></span>
               <span><b>Nur Sonderuprank</b><small>Reguläre Dauer/Ausbildung wird nicht automatisch vorgeschlagen.</small></span>
             </label>
-            <div class="rule-training-grid">
-              ${trainings.map((training) => `
-                <label class="training-toggle">
-                  <input type="checkbox" name="rule_${rule.targetRank}_${training}" ${rule.trainings?.includes(training) ? "checked" : ""}>
-                  <span>${escapeHtml(training)}</span>
-                </label>
-              `).join("")}
-            </div>
           </section>
         `).join("")}
       </div>
@@ -2314,21 +2356,18 @@ function collectPermissionEditors() {
 }
 
 function renderITOverviewPanel(editablePages) {
-  const activeDuty = state.duty.length;
-  const protectedPages = editablePages.filter((page) => isInternalSheetPage(page) && isPageViewRestricted(page)).length;
   const restartTimes = state.settings.restartTimes || [];
   return `
     <div class="panel it-section-card it-overview-start it-overview-redesign">
       <div class="it-overview-headline">
         <div>
           <h3>IT Übersicht</h3>
-          <p class="muted">Zentrale Verwaltung für Sicherungen, Struktur, Sessions und Restarts.</p>
+          <p class="muted">Zentrale Verwaltung für Accounts, Fraktionen, Ränge, Discord und Backups.</p>
         </div>
         <div class="it-status-strip">
-          <span><b>${editablePages.length}</b> Reiter</span>
+          <span><b>${gangFactions().length}</b> Fight-Fraktionen</span>
           <span><b>${state.departments.length}</b> Abteilungen</span>
-          <span><b>${activeDuty}</b> im Dienst</span>
-          <span><b>${protectedPages}</b> geschützt</span>
+          <span><b>${state.users.length}</b> Accounts</span>
         </div>
       </div>
       <div class="it-overview-grid">
@@ -2341,10 +2380,8 @@ function renderITOverviewPanel(editablePages) {
           </div>
         </section>
         <section class="it-overview-block">
-          <div><strong>Struktur</strong><small>Neue Blätter anlegen und schnell in die Reiterverwaltung springen.</small></div>
+          <div><strong>System</strong><small>Entwicklermodus und Restarts steuern.</small></div>
           <div class="it-action-grid compact-actions">
-            <button class="it-tool" id="overviewCreatePage"><strong>Reiter erstellen</strong><span>Leeres Template-Blatt</span></button>
-            <button class="it-tool" id="overviewCreateDepartment"><strong>Abteilung erstellen</strong><span>Abteilungs-Template</span></button>
             <button class="it-tool ${state.settings?.devMode ? "devmode-on" : ""}" id="overviewToggleDevMode"><strong>Devmode</strong><span>${state.settings?.devMode ? "Aktiv" : "Aus"}</span></button>
           </div>
         </section>
@@ -2510,7 +2547,7 @@ function renderIT() {
   const editablePages = editableItPages();
   const sortedRanks = [...state.ranks].sort((a, b) => b.value - a.value);
   const storedItTab = localStorage.getItem("lspd_it_tab") || "overview";
-  const itTabs = [["overview", "Übersicht"], ["pages", "Reiter"], ["members", "Mitglieder"], ["ranks", "Ränge"], ["discord", "Discord Sync"]];
+  const itTabs = [["overview", "Übersicht"], ["members", "Mitglieder"], ["ranks", "Ränge"], ["discord", "Discord Sync"]];
   const visibleItTabs = itTabs;
   const itTab = visibleItTabs.some(([id]) => id === storedItTab) ? storedItTab : "overview";
   content.innerHTML = `
@@ -2518,7 +2555,7 @@ function renderIT() {
       <div class="panel it-hero-panel it-overview-card">
         <div>
           <h3><span class="section-icon">${iconSvg("IT")}</span>IT Verwaltung</h3>
-          <p class="muted">Systemsteuerung, Rechte, Mitglieder und Ränge übersichtlich getrennt.</p>
+          <p class="muted">Systemsteuerung, Mitglieder, Fraktionen und Ränge übersichtlich getrennt.</p>
         </div>
         <div class="tabs-row it-tabs">
           ${visibleItTabs.map(([id, label]) => `<button class="${itTab === id ? "tab-active" : ""}" data-it-tab="${id}">${label}</button>`).join("")}
@@ -2528,7 +2565,7 @@ function renderIT() {
 
     <section class="it-workbench">
       ${itTab === "overview" ? renderITOverviewPanel(editablePages) : ""}
-      <div class="panel it-section-card it-pages-card ${itTab === "pages" ? "" : "hidden"}">
+      <div class="panel it-section-card it-pages-card hidden">
         <div class="it-section-title">
           <span>03</span>
           <div><h3>Reiter & Rechte</h3><p class="muted">Namen ändern und Rechte direkt pro Reiter öffnen.</p></div>
@@ -2575,7 +2612,7 @@ function renderIT() {
         <div class="it-member-list">
           ${state.users.map((user) => `
             <div class="it-member-row">
-              <span>${avatarMarkup(user, "sm")}<span><strong>${escapeHtml(fullName(user))}</strong><small>DN ${escapeHtml(user.dn || "-")} · ${escapeHtml(rankLabel(user.rank))}</small></span></span>
+              <span>${avatarMarkup(user, "sm")}<span><strong>${escapeHtml(fullName(user))}</strong><small>${escapeHtml(rankLabel(user.rank))}</small></span></span>
               <span class="it-member-roles">${roleBadges(user)}</span>
               <button class="ghost-btn reset-member-password" type="button" data-user-id="${escapeHtml(user.id)}">Passwort Reset</button>
               <button class="mini-icon it-edit-member" type="button" data-user-id="${escapeHtml(user.id)}" title="Mitglied bearbeiten">${actionIcon("edit")}</button>
@@ -7432,14 +7469,14 @@ function renderDepartmentLeadershipPanel(department) {
   const selectedRange = localStorage.getItem(`lspd_leadership_range_${department.id}`) || "Gesamt";
   const searchTerm = searchValue.trim().toLowerCase();
   const members = department.members.filter((member) => {
-    const haystack = `${fullName(member.user)} ${member.position} ${rankLabel(member.user.rank)} ${member.user.dn || ""}`.toLowerCase();
+    const haystack = `${fullName(member.user)} ${member.position} ${rankLabel(member.user.rank)}`.toLowerCase();
     return !searchTerm || haystack.includes(searchTerm);
   });
   return `
     <div class="panel department-overview-content">
       <div class="panel-header"><h3>Leitung</h3><span class="muted">${cleanText("Interne Mitglieder\u00fcbersicht")}</span></div>
       <div class="leadership-toolbar">
-        <input id="leadershipSearch" value="${escapeHtml(searchValue)}" placeholder="Name, DN, Position oder Rang suchen">
+        <input id="leadershipSearch" value="${escapeHtml(searchValue)}" placeholder="Name, Position oder Rang suchen">
         <label>Zeitraum
           <select id="leadershipRange">
             ${["Heute", "Woche", "Monat", "Gesamt"].map((range) => `<option ${selectedRange === range ? "selected" : ""}>${range}</option>`).join("")}
@@ -7563,14 +7600,8 @@ function renderProfileTrainingPanel(user) {
 
 function renderProfile() {
   const user = state.currentUser;
-  const profileTabs = ["Ausbildung", "Dienstzeiten", "Abmeldung", "Anmeldung Prüfung"];
-  const myHistory = (state.dutyHistory || []).filter((entry) => entry.userId === user.id).sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
-  const trainingDone = trainings.filter((training) => Boolean(user.trainings?.[training])).length;
-  const trainingTotal = trainings.length || 1;
-  const trainingPercent = Math.round((trainingDone / trainingTotal) * 100);
-  const sumDuty = (status = null) => myHistory
-    .filter((entry) => !status || entry.status === status || (status === "Innendienst" && entry.status === "Admin Dienst"))
-    .reduce((sum, entry) => sum + durationMs(entry), 0);
+  const profileTabs = ["Account", "Discord"];
+  if (!profileTabs.includes(state.profileTab)) state.profileTab = "Account";
   content.innerHTML = `
     <section class="panel profile-hero">
       ${avatarMarkup(user, "xl")}
@@ -7581,7 +7612,6 @@ function renderProfile() {
           ${roleBadges(user)}
         </div>
         <div class="profile-inline-facts">
-          <span><b>Dienstnummer</b>${escapeHtml(user.dn)}</span>
           <span><b>Telefon</b>${escapeHtml(user.phone)}</span>
           <span><b>Beitritt Datum</b>${formatDate(user.joinedAt)}</span>
         </div>
@@ -7592,53 +7622,20 @@ function renderProfile() {
         <input id="avatarFileInput" class="hidden" type="file" accept="image/*">
       </div>
     </section>
-    <section class="panel profile-discord-card">
-      <div>
-        <h3>Discord Sync</h3>
-        <p class="muted">${user.discordId ? `Verknüpft mit Discord ID ${escapeHtml(user.discordId)}${user.discordName ? ` (${escapeHtml(user.discordName)})` : ""}.` : "Noch kein Discord Account verknüpft. Nach der Verknüpfung kann Discord Login und Rollen-Sync genutzt werden."}</p>
-      </div>
-      <button class="discord-login-btn" id="profileDiscordLinkSecondary" type="button">${user.discordId ? "Discord Verbindung erneuern" : "Discord jetzt verknüpfen"}</button>
-    </section>
-    <section class="grid-4 profile-stat-grid">
-      <div class="stat-card progress-stat">
-        <span>Ausbildungsfortschritt</span>
-        <strong>${trainingPercent}%</strong>
-        <div class="progress-bar"><i style="width: ${trainingPercent}%"></i></div>
-        <small>${trainingDone} von ${trainingTotal} abgeschlossen</small>
-      </div>
-      <div class="stat-card"><span>Dienststunden</span><strong>${formatDuration(sumDuty())}</strong><small>Alle Dienste</small></div>
-      <div class="stat-card split-stat">
-        <span>Außendienst</span>
-        <div class="service-split">
-          <span><b>Normal</b>${formatDuration(sumDuty("Außendienst"))}</span>
-          <span><b>Undercover</b>${formatDuration(sumDuty("Undercover Dienst"))}</span>
-        </div>
-      </div>
-      <div class="stat-card"><span>Innendienst</span><strong>${formatDuration(sumDuty("Innendienst"))}</strong><small>Büro & Verwaltung</small></div>
-    </section>
     <section class="tabs-row profile-tabs">
       ${profileTabs.map((tab) => `<button class="${state.profileTab === tab ? "tab-active" : ""}" data-profile-tab="${escapeHtml(tab)}">${escapeHtml(tab)}</button>`).join("")}
     </section>
     <section class="panel">
-      ${state.profileTab === "Ausbildung" ? renderProfileTrainingPanel(user) : state.profileTab === "Dienstzeiten" ? `
-        <div class="panel-header"><h3>Dienstzeiten</h3><span class="muted">${myHistory.length} Einträge</span></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Dienstbeginn</th><th>Dienstende</th><th>Diensttyp</th><th>Dauer</th><th>Status</th></tr></thead>
-            <tbody>
-              ${myHistory.map((entry) => `
-                <tr>
-                  <td>${formatDateTime(entry.startedAt)}</td>
-                  <td>${entry.endedAt ? formatDateTime(entry.endedAt) : "Läuft noch"}</td>
-                  <td>${escapeHtml(entry.status)}</td>
-                  <td>${formatDuration(durationMs(entry))}</td>
-                  <td>${entry.endedAt ? "Beendet" : "Aktiv"}</td>
-                </tr>
-              `).join("") || `<tr><td colspan="5" class="muted">Noch keine Dienstzeiten.</td></tr>`}
-            </tbody>
-          </table>
-        </div>
-      ` : `<div class="template-page"><h3>${escapeHtml(state.profileTab)}</h3><p class="muted">Dieser Bereich kann später erweitert werden.</p></div>`}
+      ${state.profileTab === "Discord" ? `
+        <div class="panel-header"><h3>Discord Sync</h3></div>
+        <p class="muted">${user.discordId ? `Verknüpft mit Discord ID ${escapeHtml(user.discordId)}${user.discordName ? ` (${escapeHtml(user.discordName)})` : ""}.` : "Noch kein Discord Account verknüpft. Nach der Verknüpfung kann Discord Login und Rollen-Sync genutzt werden."}</p>
+        <button class="discord-login-btn" id="profileDiscordLinkSecondary" type="button">${user.discordId ? "Discord Verbindung erneuern" : "Discord jetzt verknüpfen"}</button>
+      ` : `
+        <div class="panel-header"><h3>Account</h3></div>
+        <div class="info-box"><strong>Name</strong><p>${escapeHtml(fullName(user))}</p></div>
+        <div class="info-box"><strong>Rang</strong><p>${escapeHtml(rankLabel(user.rank))}</p></div>
+        <div class="info-box"><strong>Telefon</strong><p>${escapeHtml(user.phone || "-")}</p></div>
+      `}
     </section>
   `;
 
@@ -8631,32 +8628,30 @@ function openStopAllDutyModal() {
 
 function openUserModal(user) {
   const isEdit = Boolean(user);
-  const selectedTrainings = user?.trainings || {};
+  const selectedDepartments = user
+    ? (state.departments || []).filter((department) => department.members?.some((member) => member.userId === user.id)).map((department) => department.id)
+    : [];
   const baseRoles = editableRoleOptions(user);
   const selectedRole = baseRoles.includes(baseRoleForUser(user)) ? baseRoleForUser(user) : "User";
-  const initialDn = String(user?.dn || "");
-  const initialDnConflict = dnConflictFor(initialDn, user?.id);
   openModal(`
     <h3>${isEdit ? "Mitglied bearbeiten" : "Neues Mitglied einstellen"}</h3>
     <form id="userForm" class="form-grid">
       <label>Name<input name="firstName" value="${escapeHtml(user?.firstName || "")}" required></label>
       <label>Nachname / Doppelname<input name="lastName" value="${escapeHtml(user?.lastName || "")}" required></label>
       <label>Telefonnummer<input name="phone" value="${escapeHtml(user?.phone || "")}" required></label>
-      <label>DN<input name="dn" id="userDnInput" inputmode="numeric" pattern="[0-9]+" value="${escapeHtml(initialDn)}" required></label>
       <label>Discord User-ID<input name="discordId" inputmode="numeric" pattern="[0-9]*" value="${escapeHtml(user?.discordId || "")}" placeholder="Optional"></label>
       <label>Einstellungsdatum<input name="joinedAt" type="date" value="${escapeHtml((user?.joinedAt || new Date().toISOString()).slice(0, 10))}"></label>
-      <div id="userDnConflict" class="full">${renderDnConflictBox(initialDnConflict, initialDn)}</div>
       <label>Rang
         <select name="rank">${state.ranks.map((rank) => `<option value="${rank.value}" ${Number(user?.rank ?? 0) === Number(rank.value) ? "selected" : ""}>${escapeHtml(rankOptionLabel(rank))}</option>`).join("")}</select>
       </label>
       <label>Rolle
-        <select name="role">${baseRoles.map((role) => `<option ${selectedRole === role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}</select>
+        <select name="role">${baseRoles.map((role) => `<option value="${escapeHtml(role)}" ${selectedRole === role ? "selected" : ""}>${escapeHtml(appLabel(role))}</option>`).join("")}</select>
       </label>
       ${renderTeamlerControl(user)}
       ${renderItRoleControls(user)}
       <div class="full">
-        <p class="muted">Ausbildungen</p>
-        ${renderTrainingPicker(selectedTrainings)}
+        <p class="muted">Abteilungen</p>
+        ${renderDepartmentPicker(selectedDepartments)}
       </div>
       <p id="modalError" class="form-error full"></p>
       <div class="modal-actions full">
@@ -8677,27 +8672,42 @@ function openUserModal(user) {
       }
       delete body.isIT;
       delete body.isITLead;
-      body.departments = user?.departments || [];
+      body.dn = user?.dn || "";
+      body.departments = Array.from(modal.querySelectorAll("[data-user-department]:checked")).map((input) => input.value);
       body.rank = Number(body.rank);
       body.teamler = form.get("teamler") === "on";
-      body.overwriteDn = $("#overwriteDn")?.checked || false;
-      body.trainings = Object.fromEntries(trainings.map((training) => [training, form.get(`training_${training}`) === "on"]));
+      body.trainings = {};
       try {
-        await api(isEdit ? `/api/users/${user.id}` : "/api/users", {
+        const saved = await api(isEdit ? `/api/users/${user.id}` : "/api/users", {
           method: isEdit ? "PATCH" : "POST",
           body: JSON.stringify(body)
         });
+        await syncUserDepartmentMemberships(saved.user?.id || user?.id, body.departments);
         closeModal();
         await bootstrap();
       } catch (error) {
         $("#modalError").textContent = error.message;
       }
     });
-    modal.querySelector("#userDnInput").addEventListener("input", (event) => {
-      const dn = event.target.value;
-      modal.querySelector("#userDnConflict").innerHTML = renderDnConflictBox(dnConflictFor(dn, user?.id), dn);
-    });
   });
+}
+
+async function syncUserDepartmentMemberships(userId, selectedDepartments = []) {
+  if (!userId) return;
+  const selected = new Set(selectedDepartments);
+  const departments = (state.departments || []).filter((department) => department.id !== "direktion");
+  for (const department of departments) {
+    const isMember = department.members?.some((member) => member.userId === userId);
+    if (selected.has(department.id) && !isMember) {
+      await api(`/api/departments/${department.id}/members`, {
+        method: "POST",
+        body: JSON.stringify({ userId, position: "Mitglied" })
+      });
+    }
+    if (!selected.has(department.id) && isMember) {
+      await api(`/api/departments/${department.id}/members/${userId}`, { method: "DELETE" });
+    }
+  }
 }
 
 function findAnyUser(userId) {
@@ -8711,7 +8721,7 @@ async function saveUprankRules(event) {
     targetRank: Number(rule.targetRank),
     minDays: Number(form.get(`minDays_${rule.targetRank}`) || 0),
     specialOnly: form.get(`specialOnly_${rule.targetRank}`) === "on",
-    trainings: trainings.filter((training) => form.get(`rule_${rule.targetRank}_${training}`) === "on")
+    trainings: []
   }));
   try {
     await api("/api/settings/uprank-rules", { method: "PATCH", body: JSON.stringify({ rules }) });
@@ -8728,7 +8738,6 @@ function openUprankModal(user, forceSpecial = false) {
     <p class="muted">${escapeHtml(fullName(user))} \u00b7 ${escapeHtml(rankLabel(user.rank))} \u2192 ${escapeHtml(rankLabel(evaluation.targetRank))}</p>
     <div class="uprank-modal-summary">
       <span class="requirement-chip ${evaluation.missingDays ? "missing" : "ok"}">${evaluation.missingDays ? `${evaluation.missingDays} Tage fehlen` : "Dauer erf\u00fcllt"}</span>
-      <span class="requirement-chip ${evaluation.missingTrainings.length ? "missing" : "ok"}">${evaluation.missingTrainings.length ? `Fehlt: ${escapeHtml(evaluation.missingTrainings.join(", "))}` : "Ausbildungen erf\u00fcllt"}</span>
       <span class="requirement-chip ${forceSpecial ? "special" : "ok"}">${forceSpecial ? "Sonderuprank" : "Regul\u00e4rer Uprank"}</span>
     </div>
     <form id="uprankForm" class="form-grid">
@@ -8833,8 +8842,6 @@ function openDeleteUserModal(userId) {
 
 function openRehireUserModal(user) {
   const info = terminationInfo(user);
-  const oldDn = String(info.oldDn || user.dn || "");
-  const selectedTrainings = info.oldTrainings || user.trainings || {};
   const baseRoles = editableRoleOptions(user);
   const selectedRole = baseRoles.includes(baseRoleForUser(user)) ? baseRoleForUser(user) : "User";
   openModal(`
@@ -8842,16 +8849,14 @@ function openRehireUserModal(user) {
     <div class="old-data-box">
       <div>
         <strong>Alte Daten</strong>
-        <p>Name: ${escapeHtml(fullName(user))} · Telefon: ${escapeHtml(user.phone || "-")} · Dienstnummer: ${escapeHtml(oldDn || "-")} · Rang: ${escapeHtml(rankLabel(info.oldRank ?? user.rank))}</p>
+        <p>Name: ${escapeHtml(fullName(user))} · Telefon: ${escapeHtml(user.phone || "-")} · Rang: ${escapeHtml(rankLabel(info.oldRank ?? user.rank))}</p>
       </div>
       <button class="ghost-btn" type="button" id="fillOldRehireData">Alte Daten übernehmen</button>
     </div>
-    <div id="rehireDnConflict"></div>
     <form id="rehireUserForm" class="form-grid">
       <label>Name<input name="firstName" id="rehireFirstName" value="" required></label>
       <label>Nachname / Doppelname<input name="lastName" id="rehireLastName" value="" required></label>
       <label>Telefonnummer<input name="phone" id="rehirePhone" value="" required></label>
-      <label>Dienstnummer<input name="dn" id="rehireDnInput" inputmode="numeric" pattern="[0-9]+" value="" required></label>
       <label>Einstellungsdatum<input name="joinedAt" id="rehireJoinedAt" type="date" value=""></label>
       <label>Rang
         <select name="rank" id="rehireRank">
@@ -8860,15 +8865,11 @@ function openRehireUserModal(user) {
         </select>
       </label>
       <label>Rolle
-        <select name="role">${baseRoles.map((role) => `<option ${selectedRole === role ? "selected" : ""}>${escapeHtml(role)}</option>`).join("")}</select>
+        <select name="role">${baseRoles.map((role) => `<option value="${escapeHtml(role)}" ${selectedRole === role ? "selected" : ""}>${escapeHtml(appLabel(role))}</option>`).join("")}</select>
       </label>
       ${renderTeamlerControl(user)}
       ${renderItRoleControls(user)}
       <label class="full">Grund der Wiedereinstellung<textarea name="reason">Wiedereinstellung</textarea></label>
-      <div class="full">
-        <p class="muted">Ausbildungen</p>
-        ${renderTrainingPicker(selectedTrainings)}
-      </div>
       <p id="modalError" class="form-error full"></p>
       <div class="modal-actions full">
         <button class="ghost-btn" type="button" data-close>Abbrechen</button>
@@ -8885,7 +8886,7 @@ function openRehireUserModal(user) {
         await api(`/api/users/${user.id}/rehire`, {
           method: "POST",
           body: JSON.stringify({
-            dn: form.get("dn"),
+            dn: user.termination?.oldDn || user.dn || "",
             rank: Number(form.get("rank")),
             firstName: form.get("firstName"),
             lastName: form.get("lastName"),
@@ -8895,8 +8896,8 @@ function openRehireUserModal(user) {
             baseRole,
             teamler: form.get("teamler") === "on",
             reason: form.get("reason"),
-            overwriteDn: $("#overwriteDn")?.checked || false,
-            trainings: Object.fromEntries(trainings.map((training) => [training, form.get(`training_${training}`) === "on"]))
+            overwriteDn: false,
+            trainings: {}
           })
         });
         closeModal();
@@ -8905,18 +8906,12 @@ function openRehireUserModal(user) {
         $("#modalError").textContent = error.message;
       }
     });
-    modal.querySelector("#rehireDnInput").addEventListener("input", (event) => {
-      const dn = event.target.value;
-      modal.querySelector("#rehireDnConflict").innerHTML = renderDnConflictBox(dnConflictFor(dn, user.id), dn);
-    });
     modal.querySelector("#fillOldRehireData").addEventListener("click", () => {
       modal.querySelector("#rehireFirstName").value = user.firstName || "";
       modal.querySelector("#rehireLastName").value = user.lastName || "";
       modal.querySelector("#rehirePhone").value = user.phone || "";
-      modal.querySelector("#rehireDnInput").value = oldDn;
       modal.querySelector("#rehireJoinedAt").value = new Date().toISOString().slice(0, 10);
       modal.querySelector("#rehireRank").value = String(info.oldRank ?? user.rank ?? "");
-      modal.querySelector("#rehireDnConflict").innerHTML = renderDnConflictBox(dnConflictFor(oldDn, user.id), oldDn);
     });
   });
 }
@@ -9477,8 +9472,8 @@ function openDepartmentMemberModal(department, member = null) {
   openModal(`
     <h3>${member ? "Position bearbeiten" : "Person hinzufügen"}</h3>
     <p class="muted">Wählen Sie eine Person aus, die zu ${escapeHtml(department.name)} hinzugefügt werden soll.</p>
-    ${member ? `<p><strong>${escapeHtml(fullName(member.user))}</strong></p>` : `<label>Person suchen<input id="departmentUserSearch" placeholder="Name oder DN suchen"></label>
-    <label>Person auswählen<select id="departmentUserSelect">${availableUsers.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn)} - ${escapeHtml(rankLabel(user.rank))}</option>`).join("")}</select></label>`}
+    ${member ? `<p><strong>${escapeHtml(fullName(member.user))}</strong></p>` : `<label>Person suchen<input id="departmentUserSearch" placeholder="Name oder Rang suchen"></label>
+    <label>Person auswählen<select id="departmentUserSelect">${availableUsers.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - ${escapeHtml(rankLabel(user.rank))}</option>`).join("")}</select></label>`}
     <label>Position auswählen
       <select id="departmentPositionSelect">
         ${(allowedPositions.length ? allowedPositions : ["Mitglied"]).map((position) => `<option ${defaultDepartmentPosition === position ? "selected" : ""}>${escapeHtml(position)}</option>`).join("")}
@@ -9496,7 +9491,7 @@ function openDepartmentMemberModal(department, member = null) {
       const term = search.value.toLowerCase();
       select.innerHTML = availableUsers
         .filter((user) => fullName(user).toLowerCase().includes(term) || String(user.dn).includes(term))
-        .map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn)} - ${escapeHtml(rankLabel(user.rank))}</option>`)
+        .map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - ${escapeHtml(rankLabel(user.rank))}</option>`)
         .join("");
     });
     modal.querySelector("#saveDepartmentMember").addEventListener("click", async () => {
@@ -9665,8 +9660,8 @@ function fightStats() {
 
 function fightResultIcon(result) {
   if (result === "Gewonnen") return `<span class="fight-result-icon win">${iconSvg("Trophy")}</span>`;
-  if (result === "Verloren") return `<span class="fight-result-icon loss">${iconSvg("Skull")}</span>`;
-  return `<span class="fight-result-icon nofight">${iconSvg("Skull")}</span>`;
+  if (result === "Verloren") return `<span class="fight-result-icon loss">${iconSvg("XCircle")}</span>`;
+  return `<span class="fight-result-icon nofight">${iconSvg("MinusCircle")}</span>`;
 }
 
 function fightResultClass(result) {
@@ -9698,7 +9693,7 @@ function getVisiblePages() {
   const departmentNav = (state.departments || [])
     .filter((department) => department.id !== "direktion" && department.canOpen)
     .map((department) => `dept:${department.id}`);
-  const hiddenPolicePages = new Set(["Dienstblatt", "Einsatzzentrale", "Beschlagnahmung", "Meine Lernkontrollen", "Abteilungen"]);
+  const hiddenPolicePages = new Set(["Dienstblatt", "Einsatzzentrale", "Beschlagnahmung", "Meine Lernkontrollen", "Abteilungen", "Ausbilderübersicht"]);
   const basePages = [
     "Dashboard",
     "Fight",
@@ -9712,14 +9707,16 @@ function getVisiblePages() {
 
 function navLabel(page) {
   if (page === "Dienstblatt") return "Dashboard";
+  if (page === "Direktion") return "Leader";
   if (isDepartmentPage(page)) return departmentByPage(page)?.name || page;
-  return state.settings?.navLabels?.[page] || page;
+  return appLabel(state.settings?.navLabels?.[page] || page);
 }
 
 function pageDescription(page) {
   if (page === "Dashboard") return "MG13 Uebersicht, Spots, Dealer und Labor";
   if (page === "Fight") return "Fight erstellen, Statistik ansehen und Archiv pflegen";
-  if (page === "IT") return "Fraktionen fuer Fight-Gegner verwalten";
+  if (page === "IT") return "Fraktionen, Ränge und Accounts verwalten";
+  if (page === "Direktion") return "Leader, Anwesenheit und Mitgliedersteuerung";
   if (isDepartmentPage(page)) {
     const department = departmentByPage(page);
     return department ? `${department.name} - ${department.description}` : "Abteilungsuebersicht und interne Notizen";
@@ -9822,7 +9819,7 @@ function renderGangStat(label, value, subline, icon) {
 function renderFight() {
   const stats = fightStats();
   content.innerHTML = `
-    <section class="grid-4 dashboard-stats gang-stats">
+    <section class="grid-4 dashboard-stats gang-stats fight-stats-compact">
       ${renderGangStat("WinRate", `${stats.rate}%`, `${stats.wins}W / ${stats.losses}L`, "Trophy")}
       ${renderGangStat("Gewonnen", stats.wins, "Wins", "Trophy")}
       ${renderGangStat("Verloren", stats.losses, "Losses", "Skull")}
@@ -9850,10 +9847,15 @@ function renderFight() {
 }
 
 function renderFightArchiveRow(fight) {
+  const resultClass = fightResultClass(fight.result);
   return `
-    <article class="fight-row ${fightResultClass(fight.result)}">
+    <article class="fight-row ${resultClass}">
       ${fightResultIcon(fight.result)}
-      <div><strong>${escapeHtml(fight.type)} gegen ${escapeHtml(fight.opponent)}</strong><small>${formatDateTime(fight.dateTime)} · ${escapeHtml(fight.result)}</small></div>
+      <div class="fight-row-main">
+        <strong><span>${escapeHtml(fight.type)}</span> gegen ${escapeHtml(fight.opponent)}</strong>
+        <small class="fight-date-pill">${formatDateTime(fight.dateTime)}</small>
+      </div>
+      <span class="fight-result-card ${resultClass}">${escapeHtml(fight.result === "Verloren" ? "Lost" : fight.result === "Gewonnen" ? "Win" : "No Fight")}</span>
       <span class="button-row"><button class="mini-icon edit-fight" data-id="${escapeHtml(fight.id)}">${actionIcon("edit")}</button><button class="mini-icon danger delete-fight" data-id="${escapeHtml(fight.id)}">${actionIcon("delete")}</button></span>
     </article>
   `;

@@ -61,11 +61,8 @@ function defaultUprankRules() {
 
 function defaultDepartments() {
   return [
-    makeDepartment("direktion", "Direktion", "LSPD Direktion und administrative Leitung", "Offen"),
-    makeDepartment("training-recruitment", "Training / Recruitment", "Ausbildung, Recruiting und Lernkontrollen", "Offen"),
-    makeDepartment("department-corruptions", "Department of Corruptions", "Interne Ermittlungen und Korruptionsdelikte", "Offen"),
-    makeDepartment("metro-taskforce", "Metro Taskforce", "Spezialeinsätze und operative Taskforce", "Offen"),
-    makeDepartment("swat", "SWAT", "Taktische Einsätze und Zugriffslagen", "Offen")
+    makeDepartment("direktion", "Leader", "MG13 Leader und interne Verwaltung", "Offen"),
+    makeDepartment("logistik", "Logistik", "Lager, Routen und interne Gang-Organisation", "Offen")
   ];
 }
 
@@ -131,7 +128,7 @@ function normalizePermissions(value = {}) {
 
 const departmentPositions = ["Direktion", "Leitung", "Stv. Leitung", "Mitglied", "Anwärter"];
 const positionPower = { "Direktion": 5, "Leitung": 4, "Stv. Leitung": 3, "Mitglied": 2, "Anwärter": 1 };
-const trainingNames = ["EST", "Wissen", "Fahren", "Schießen", "Verhalten", "Undercover", "Wanted", "EL", "Officer Prüfung", "Prak. VHF", "Prak. EL I", "Führung", "Prak. EL II", "Air Support", "Riot", "Coquette"];
+const trainingNames = [];
 
 function nowIso() {
   return new Date().toISOString();
@@ -277,7 +274,9 @@ function readDb() {
 
 function normalizeDepartments(existingDepartments) {
   const defaults = defaultDepartments();
-  const existing = Array.isArray(existingDepartments) ? existingDepartments : [];
+  const removedIds = new Set(["training-recruitment", "department-corruptions", "metro-taskforce", "swat"]);
+  const removedNames = new Set(["Training / Recruitment", "Department of Corruptions", "Metro Taskforce", "SWAT"]);
+  const existing = (Array.isArray(existingDepartments) ? existingDepartments : []).filter((department) => !removedIds.has(department?.id) && !removedNames.has(department?.name));
   const normalizedDefaults = defaults.map((department) => {
     const stored = existing.find((item) => item.id === department.id || item.name === department.name);
     return {
@@ -896,11 +895,11 @@ function normalizeUserInput(body, existingUser) {
   const teamler = Boolean(body.teamler);
   const joinedAt = String(body.joinedAt || existingUser?.joinedAt || todayIso()).slice(0, 10);
 
-  if (!firstName || !lastName || !phone || !dn || Number.isNaN(rank)) {
-    return { error: "Name, Nachname, Telefon, DN und Rang sind Pflichtfelder." };
+  if (!firstName || !lastName || !phone || Number.isNaN(rank)) {
+    return { error: "Name, Nachname, Telefon und Rang sind Pflichtfelder." };
   }
 
-  const dnError = validateDigits(dn, "DN");
+  const dnError = dn ? validateDigits(dn, "DN") : null;
   if (dnError) return { error: dnError };
   if (discordId) {
     const discordIdError = validateDigits(discordId, "Discord User-ID");
@@ -933,6 +932,7 @@ function dnConflictMessage(user) {
 }
 
 function resolveDnConflict(db, currentUserId, dn, overwriteDn) {
+  if (!dn) return null;
   const holder = db.users.find((item) => item.id !== currentUserId && item.dn === dn);
   if (!holder) return null;
   if (!holder.terminated) {
@@ -956,7 +956,6 @@ function userChangeSummary(db, before, after) {
     ["firstName", "Vorname"],
     ["lastName", "Nachname"],
     ["phone", "Telefon"],
-    ["dn", "Dienstnummer"],
     ["joinedAt", "Einstellungsdatum"],
     ["role", "Rolle"]
   ];
@@ -964,11 +963,6 @@ function userChangeSummary(db, before, after) {
     if (String(before?.[key] ?? "") !== String(after?.[key] ?? "")) changes.push(`${label}: ${before?.[key] || "-"} -> ${after?.[key] || "-"}`);
   });
   if (Number(before?.rank) !== Number(after?.rank)) changes.push(`Rang: ${rankText(db, before?.rank)} -> ${rankText(db, after?.rank)}`);
-  trainingNames.forEach((training) => {
-    const had = Boolean(before?.trainings?.[training]);
-    const has = Boolean(after?.trainings?.[training]);
-    if (had !== has) changes.push(`Ausbildung ${training} ${has ? "hinzugefügt" : "entfernt"}`);
-  });
   return changes.join("; ");
 }
 
@@ -1510,7 +1504,7 @@ app.post("/api/users/:id/rehire", requireAuth, requireRole("Direktion"), (req, r
   if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden." });
   if (!user.terminated) return res.status(400).json({ error: "Account ist nicht archiviert." });
   const dn = String(req.body.dn || user.termination?.oldDn || user.dn || "").trim();
-  const dnError = validateDigits(dn, "Dienstnummer");
+  const dnError = dn ? validateDigits(dn, "Dienstnummer") : null;
   if (dnError) return res.status(400).json({ error: dnError });
   const dnConflict = resolveDnConflict(req.db, user.id, dn, Boolean(req.body.overwriteDn));
   if (dnConflict?.error) return res.status(400).json({ error: dnConflict.error });

@@ -8781,6 +8781,154 @@ textarea:focus {
   background: rgba(148, 163, 184, .14);
 }
 
+.fight-stats-compact .stat-card {
+  min-height: 78px;
+  padding: 12px 14px;
+}
+
+.fight-stats-compact .gang-stat-card strong {
+  font-size: 24px;
+}
+
+.fight-stats-compact .gang-stat-card i {
+  width: 34px;
+  height: 34px;
+}
+
+.fight-row {
+  grid-template-columns: 46px minmax(0, 1fr) 108px auto;
+  padding: 14px;
+}
+
+.fight-row-main {
+  display: grid;
+  gap: 7px;
+}
+
+.fight-row-main strong span {
+  color: #7bdfff;
+}
+
+.fight-date-pill {
+  width: fit-content;
+  padding: 5px 9px;
+  border: 1px solid rgba(57, 210, 255, .22);
+  border-radius: 999px;
+  background: rgba(34, 184, 240, .09);
+  color: #a9dff5;
+  font-weight: 800;
+}
+
+.fight-result-card {
+  justify-self: stretch;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.fight-result-card.win {
+  color: #84ffbc;
+  background: rgba(24, 201, 121, .16);
+  border: 1px solid rgba(24, 201, 121, .45);
+}
+
+.fight-result-card.loss {
+  color: #ff9daa;
+  background: rgba(240, 78, 97, .16);
+  border: 1px solid rgba(240, 78, 97, .45);
+}
+
+.fight-result-card.nofight {
+  color: #d3dfeb;
+  background: rgba(148, 163, 184, .12);
+  border: 1px solid rgba(148, 163, 184, .32);
+}
+
+.leader-attendance-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.leader-attendance-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.leader-attendance-toolbar input {
+  max-width: 360px;
+}
+
+.leader-attendance-list {
+  display: grid;
+  gap: 10px;
+}
+
+.leader-attendance-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 120px repeat(3, 110px);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #20384d;
+  border-radius: 8px;
+  background: #0a1420;
+}
+
+.leader-attendance-member {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.leader-attendance-member small,
+.leader-attendance-row span b {
+  display: block;
+  color: #89a7bc;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.attendance-status {
+  display: inline-grid;
+  place-items: center;
+  min-height: 34px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.attendance-status.online {
+  color: #72ffaf;
+  background: rgba(24, 201, 121, .15);
+  border: 1px solid rgba(24, 201, 121, .42);
+}
+
+.attendance-status.offline {
+  color: #aebdca;
+  background: rgba(148, 163, 184, .1);
+  border: 1px solid rgba(148, 163, 184, .25);
+}
+
+.department-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .fight-row,
+  .leader-attendance-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 table {
   color: #eef7ff;
 }
