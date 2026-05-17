@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, "..");
 const STORAGE_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "storage");
 const DB_FILE = path.join(STORAGE_DIR, "dienstblatt.json");
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DEFAULT_PASSWORD = "LSPD12345";
+const DEFAULT_PASSWORD = "MG12345";
 const EVIDENCE_PREVIEW_TTL_MS = 1000 * 60 * 60 * 12;
 const evidencePreviewCache = new Map();
 
