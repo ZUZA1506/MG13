@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>MG13 Dashboard</title>
+    <link rel="icon" type="image/png" href="/assets/mg13.png">
+    <link rel="preload" as="image" href="/assets/mg13.png" fetchpriority="high">
+    <link rel="preconnect" href="https://i.gyazo.com">
+    <link rel="preconnect" href="https://gyazo.com">
+    <link rel="preconnect" href="https://i.imgur.com">
+    <link rel="preconnect" href="https://imgur.com">
+    <link rel="stylesheet" href="/styles.css?v=20260517-6">
+  </head>
+  <body>
+    <div id="loadingView" class="loading-shell">
+      <div class="loading-panel">
+        <img src="/assets/mg13.png" alt="MG13" fetchpriority="high" decoding="async" width="82" height="82">
+        <strong>Dashboard wird geladen</strong>
+        <span></span>
+      </div>
+    </div>
+
+    <div id="loginView" class="login-shell hidden">
+      <section class="login-stage">
+        <div class="login-intro">
+          <img src="/assets/mg13.png" alt="MG13" fetchpriority="high" decoding="sync" width="86" height="86">
+          <p class="eyebrow">MG13</p>
+          <h1>MG13 Dashboard</h1>
+          <p>Interne Verwaltung, Fights und Fraktionsinfos an einem zentralen Ort.</p>
+          <div class="login-trust-row">
+            <span>Geschützter Zugang</span>
+            <span>Live Dienststatus</span>
+            <span>Interne Akten</span>
+          </div>
+        </div>
+        <form id="loginForm" class="login-panel">
+          <div>
+            <p class="eyebrow">Anmeldung</p>
+            <h2>Willkommen zurück</h2>
+            <span>Bitte melde dich mit deinem Dienstblatt-Account an.</span>
+          </div>
+          <label>
+            Name
+            <input id="loginName" autocomplete="username" placeholder="Vorname Nachname-Doppelname" required>
+          </label>
+          <label>
+            Passwort
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Passwort" required>
+          </label>
+          <div class="login-action-stack">
+            <button type="submit" class="primary-btn" id="passwordLoginBtn">Einloggen</button>
+            <button type="button" class="discord-login-btn" id="discordLoginBtn">Mit Discord einloggen</button>
+          </div>
+          <p id="loginError" class="form-error"></p>
+          <footer>© 2026 MG13 Dashboard · Mit Liebe gemacht von Daniel</footer>
+        </form>
+      </section>
+    </div>
+
+    <div id="appView" class="app-shell hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/assets/mg13.png" alt="MG13">
+          <strong>MG13 Dashboard</strong>
+        </div>
+        <div class="profile-card"></div>
+        <nav id="navigation" class="navigation"></nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="logout-tab" type="button">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+            <span>Abmelden</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div id="headerTitleBlock" class="header-title-block">
+            <span id="headerIcon" class="header-icon hidden"></span>
+            <p id="rankLine" class="eyebrow"></p>
+            <h2 id="pageTitle">Dashboard</h2>
+          </div>
+          <div class="top-actions">
+            <span id="devModeBanner" class="devmode-chip hidden"></span>
+            <span id="serviceStatus" class="service-pill off">Nicht im Dienst</span>
+          </div>
+        </header>
+        <section id="content" class="content"></section>
+      </main>
+    </div>
+
+    <div id="notifyRoot" class="notify-root" aria-live="polite" aria-atomic="true"></div>
+    <div id="modalRoot" class="modal-root hidden"></div>
+    <div id="inspectBlocker" class="inspect-blocker hidden">
+      <div>
+        <img src="/assets/mg13.png" alt="MG13">
+        <strong>Zugriff blockiert</strong>
+        <p>Die Seitenuntersuchung ist im Dashboard deaktiviert.</p>
+      </div>
+    </div>
+    <script src="/app.js?v=20260517-6"></script>
+  </body>
+</html>
