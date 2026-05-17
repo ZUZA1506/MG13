@@ -12,6 +12,12 @@ const STORAGE_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : 
 const DB_FILE = path.join(STORAGE_DIR, "dienstblatt.json");
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DEFAULT_PASSWORD = "MG12345";
+const BOOTSTRAP_LOGIN = {
+  firstName: "Daniel",
+  lastName: "Hebel-Jameson",
+  password: DEFAULT_PASSWORD,
+  role: "IT-Leitung"
+};
 const EVIDENCE_PREVIEW_TTL_MS = 1000 * 60 * 60 * 12;
 const evidencePreviewCache = new Map();
 
@@ -458,6 +464,63 @@ function normalizeUprankRules(existingRules) {
 
 function writeDb(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
+
+function ensureBootstrapLogin() {
+  const db = readDb();
+  const now = nowIso();
+  const firstName = BOOTSTRAP_LOGIN.firstName;
+  const lastName = BOOTSTRAP_LOGIN.lastName;
+  let changed = false;
+  let user = db.users.find((item) => `${item.firstName} ${item.lastName}`.trim().toLowerCase() === `${firstName} ${lastName}`.toLowerCase());
+
+  if (!user) {
+    user = {
+      id: makeId("user"),
+      firstName,
+      lastName,
+      phone: "",
+      dn: "",
+      rank: 12,
+      role: BOOTSTRAP_LOGIN.role,
+      baseRole: BOOTSTRAP_LOGIN.role,
+      departments: ["Direktion"],
+      trainings: Object.fromEntries(trainingNames.map((training) => [training, true])),
+      joinedAt: todayIso(),
+      lastPromotionAt: todayIso(),
+      avatarUrl: "",
+      createdAt: now,
+      teamler: false,
+      trainingMeta: {}
+    };
+    db.users.push(user);
+    changed = true;
+  }
+
+  const updates = {
+    passwordHash: hashPassword(BOOTSTRAP_LOGIN.password),
+    role: BOOTSTRAP_LOGIN.role,
+    baseRole: BOOTSTRAP_LOGIN.role,
+    locked: false,
+    terminated: false,
+    accountStatus: "Aktiv",
+    mustChangePassword: false,
+    updatedAt: now
+  };
+
+  Object.entries(updates).forEach(([key, value]) => {
+    if (user[key] !== value) {
+      user[key] = value;
+      changed = true;
+    }
+  });
+
+  if (db.settings.defaultPassword !== DEFAULT_PASSWORD) {
+    db.settings.defaultPassword = DEFAULT_PASSWORD;
+    changed = true;
+  }
+
+  if (changed) writeDb(db);
 }
 
 function publicUser(user) {
@@ -2443,6 +2506,7 @@ function runScheduledRestarts() {
 }
 
 ensureStorage();
+ensureBootstrapLogin();
 runScheduledRestarts();
 setInterval(runScheduledRestarts, 30000);
 app.listen(PORT, HOST, () => {
