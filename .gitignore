@@ -1,0 +1,7 @@
+node_modules/
+storage/dienstblatt.json
+storage/*.json
+*.log
+.env
+mg13-dashboard-*.png
+lspd logo.png

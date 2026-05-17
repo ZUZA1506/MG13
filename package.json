@@ -1,8 +1,8 @@
 {
-  "name": "lspd-dienstblatt",
+  "name": "mg13-dashboard",
   "version": "0.1.0",
   "private": true,
-  "description": "Lokales LSPD Dienstblatt mit JSON-Speicher",
+  "description": "MG13 Dashboard mit JSON-Speicher",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

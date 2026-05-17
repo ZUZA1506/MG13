@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lspd-dienstblatt
+    name: mg13-dashboard
     runtime: node
     plan: starter
     buildCommand: npm ci --omit=dev
@@ -11,6 +11,6 @@ services:
       - key: DATA_DIR
         value: /opt/render/project/src/storage
     disk:
-      name: lspd-dienstblatt-storage
+      name: mg13-dashboard-storage
       mountPath: /opt/render/project/src/storage
       sizeGB: 1

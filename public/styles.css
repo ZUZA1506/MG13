@@ -8517,3 +8517,291 @@ textarea:focus {
     background-image: linear-gradient(135deg, rgba(255, 255, 255, .9), rgba(201, 237, 255, .82));
   }
 }
+
+/* MG13 dark redesign override */
+:root {
+  --bg: #05080d;
+  --panel: #0d141d;
+  --panel-soft: #121c28;
+  --line: #1f3345;
+  --text: #eef7ff;
+  --muted: #8da7bb;
+  --blue: #22b8f0;
+  --cyan: #39d2ff;
+  --green: #18c979;
+  --red: #f04e61;
+  --yellow: #f5c84c;
+}
+
+html,
+body {
+  background: #05080d;
+  color: var(--text);
+}
+
+.app-shell {
+  background: #05080d;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #08111a, #05080d);
+  border-right-color: #183046;
+  box-shadow: 18px 0 44px rgba(0, 0, 0, .38);
+}
+
+.brand {
+  background: rgba(8, 17, 26, .96);
+  border-bottom-color: rgba(57, 210, 255, .16);
+}
+
+.brand img,
+.gang-sidebar-logo {
+  border-color: rgba(57, 210, 255, .7);
+  background: #02050a;
+  box-shadow: 0 0 28px rgba(34, 184, 240, .18);
+}
+
+.profile-card {
+  border-color: rgba(57, 210, 255, .2);
+  background: linear-gradient(135deg, rgba(18, 32, 45, .96), rgba(7, 14, 22, .96));
+}
+
+.profile-copy strong,
+.brand strong,
+.topbar h2 {
+  color: #f4fbff;
+}
+
+.profile-copy span,
+.profile-copy small,
+.muted,
+.topbar .eyebrow {
+  color: #89a7bc;
+}
+
+.nav-btn {
+  color: #9cb6c9;
+}
+
+.nav-btn:hover,
+.nav-btn.active {
+  color: #f4fbff;
+  background: linear-gradient(135deg, rgba(34, 184, 240, .18), rgba(13, 24, 35, .92));
+  border-color: rgba(57, 210, 255, .44);
+  box-shadow: inset 0 0 0 1px rgba(57, 210, 255, .08), 0 10px 26px rgba(0, 0, 0, .28);
+}
+
+.workspace {
+  background: #05080d;
+}
+
+.topbar {
+  background: rgba(6, 12, 19, .88);
+  border-bottom-color: #162b3d;
+  backdrop-filter: blur(12px);
+}
+
+.content {
+  background:
+    radial-gradient(circle at 16% 0%, rgba(34, 184, 240, .16), transparent 30%),
+    radial-gradient(circle at 88% 12%, rgba(57, 210, 255, .08), transparent 32%),
+    #05080d;
+}
+
+.panel,
+.stat-card,
+.note-card,
+.modal,
+.choice-card,
+.it-tool,
+.edit-row {
+  color: #eef7ff;
+  background: linear-gradient(145deg, rgba(14, 24, 35, .98), rgba(8, 14, 22, .98));
+  border-color: #1f3345;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, .28);
+}
+
+input,
+select,
+textarea {
+  color: #eef7ff;
+  background: #07111b;
+  border-color: #21374b;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #22b8f0;
+  box-shadow: 0 0 0 3px rgba(34, 184, 240, .16);
+}
+
+.primary-btn,
+.blue-btn {
+  color: #02101a;
+  background: linear-gradient(135deg, #58d8ff, #18aee6);
+  border-color: rgba(88, 216, 255, .8);
+  box-shadow: 0 12px 28px rgba(24, 174, 230, .2);
+}
+
+.ghost-btn {
+  color: #cfeeff;
+  background: rgba(11, 22, 33, .84);
+  border-color: #274459;
+}
+
+.red-btn {
+  color: #ffffff;
+  background: #d63e50;
+  border-color: #f04e61;
+}
+
+.gang-hero {
+  color: #f2fbff;
+  border-color: rgba(57, 210, 255, .22);
+  background:
+    linear-gradient(135deg, rgba(9, 18, 28, .92), rgba(14, 30, 43, .78)),
+    url("/assets/mg13.png") right 28px center / 260px auto no-repeat;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.gang-hero img {
+  border-color: rgba(57, 210, 255, .75);
+  background: #02050a;
+  box-shadow: 0 18px 48px rgba(34, 184, 240, .2);
+}
+
+.gang-hero span {
+  color: #9fb8c9;
+}
+
+.gang-stat-card span {
+  color: #89a7bc;
+}
+
+.gang-stat-card strong {
+  color: #f7fcff;
+}
+
+.gang-stat-card small {
+  color: #80b7d3;
+}
+
+.gang-panel {
+  background: linear-gradient(145deg, rgba(13, 22, 32, .98), rgba(6, 11, 18, .98));
+}
+
+.gang-chip.green {
+  color: #7cffb8;
+  background: rgba(24, 201, 121, .12);
+  border-color: rgba(24, 201, 121, .48);
+}
+
+.gang-list-row,
+.dealer-card,
+.fight-row {
+  color: #eef7ff;
+  border-color: #20384d;
+  background: #0a1420;
+}
+
+.gang-list-row.active,
+.dealer-card,
+.fight-row.win {
+  border-color: rgba(24, 201, 121, .45);
+  background: rgba(14, 43, 31, .72);
+}
+
+.gang-list-row small,
+.dealer-card small,
+.fight-row small {
+  color: #87a3b6;
+}
+
+.gang-list-row.active small,
+.dealer-card small {
+  color: #63f7a7;
+}
+
+.gang-list-row b {
+  color: #61f5a5;
+  background: rgba(24, 201, 121, .16);
+}
+
+.gang-list-row.active b {
+  color: #ffd8dd;
+  background: rgba(240, 78, 97, .22);
+}
+
+.dealer-card > span {
+  background: #59572b;
+}
+
+.lab-map {
+  border-color: #20384d;
+  background:
+    linear-gradient(rgba(60, 87, 110, .22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 87, 110, .22) 1px, transparent 1px),
+    #0b131d;
+  background-size: 28px 28px;
+}
+
+.lab-dot {
+  border-color: #02101a;
+  background: #31caff;
+  box-shadow: 0 0 18px rgba(49, 202, 255, .55);
+}
+
+.lab-map > div {
+  color: #eef7ff;
+  background: rgba(4, 9, 15, .88);
+  border-color: #1f3345;
+}
+
+.lab-map b {
+  color: #49ef99;
+}
+
+.fight-row.loss {
+  border-color: rgba(240, 78, 97, .5);
+  background: rgba(53, 17, 25, .78);
+}
+
+.fight-row.nofight {
+  border-color: rgba(148, 163, 184, .38);
+  background: rgba(15, 23, 42, .78);
+}
+
+.fight-result-icon.win {
+  color: #6dffad;
+  background: rgba(24, 201, 121, .16);
+}
+
+.fight-result-icon.loss {
+  color: #ff8794;
+  background: rgba(240, 78, 97, .18);
+}
+
+.fight-result-icon.nofight {
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, .14);
+}
+
+table {
+  color: #eef7ff;
+}
+
+thead th {
+  background: #0b1723;
+  color: #a9c8dc;
+}
+
+tbody td {
+  border-color: #1e3347;
+}
+
+@media (max-width: 1100px) {
+  .gang-hero {
+    background-image: linear-gradient(135deg, rgba(9, 18, 28, .94), rgba(14, 30, 43, .86));
+  }
+}

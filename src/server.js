@@ -6,6 +6,7 @@ const express = require("express");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = path.resolve(__dirname, "..");
 const STORAGE_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "storage");
 const DB_FILE = path.join(STORAGE_DIR, "dienstblatt.json");
@@ -2473,6 +2474,6 @@ function runScheduledRestarts() {
 ensureStorage();
 runScheduledRestarts();
 setInterval(runScheduledRestarts, 30000);
-app.listen(PORT, () => {
-  console.log(`LSPD Dienstblatt laeuft auf http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`MG13 Dashboard laeuft auf ${HOST}:${PORT}`);
 });
