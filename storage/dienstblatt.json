@@ -145,6 +145,11 @@
       "token": "150953fe9e3e19cce81c9484629b781c8f08de28b3ff92393548fdf8f20ec18b",
       "userId": "user_7f64c4c2-0796-45d3-b5f1-f7aadd19c823",
       "createdAt": "2026-05-17T23:10:40.636Z"
+    },
+    {
+      "token": "5a65ce257ef2f7eda5380d78c896741235d7bb00a3c213a95d598c100e216af1",
+      "userId": "user_7f64c4c2-0796-45d3-b5f1-f7aadd19c823",
+      "createdAt": "2026-05-17T23:14:28.441Z"
     }
   ],
   "settings": {
@@ -1500,6 +1505,33 @@
     }
   ],
   "logs": [
+    {
+      "id": "log_440094f0-dfa4-4064-9108-63884f444891",
+      "action": "Login",
+      "target": "Daniel Hebel-Jameson",
+      "actorId": "user_7f64c4c2-0796-45d3-b5f1-f7aadd19c823",
+      "actorName": "Daniel Hebel-Jameson",
+      "details": {},
+      "createdAt": "2026-05-17T23:14:28.441Z"
+    },
+    {
+      "id": "log_131f695b-78a3-4f13-ba47-3292bf56d4cc",
+      "action": "Logout",
+      "target": "Daniel Hebel-Jameson",
+      "actorId": "user_7f64c4c2-0796-45d3-b5f1-f7aadd19c823",
+      "actorName": "Daniel Hebel-Jameson",
+      "details": {},
+      "createdAt": "2026-05-17T23:14:27.207Z"
+    },
+    {
+      "id": "log_c1e30c73-e688-424a-b592-406444c6b106",
+      "action": "Login",
+      "target": "Daniel Hebel-Jameson",
+      "actorId": "user_7f64c4c2-0796-45d3-b5f1-f7aadd19c823",
+      "actorName": "Daniel Hebel-Jameson",
+      "details": {},
+      "createdAt": "2026-05-17T23:13:47.572Z"
+    },
     {
       "id": "log_ceb1d0a0-542d-4a51-a92d-8ad6ccf05a99",
       "action": "Login",
