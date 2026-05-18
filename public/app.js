@@ -74,6 +74,7 @@ const state = {
   logs: [],
   disciplinary: [],
   departments: [],
+  dealerMarkers: [],
   customPages: [],
   page: localStorage.getItem("lspd_page") || "Dashboard",
   directionTab: localStorage.getItem("lspd_direction_tab") || "overview",
@@ -88,6 +89,7 @@ const pages = [
   "Einsatzzentrale",
   "Beschlagnahmung",
   "Informationen",
+  "Karte",
   "Ausbilderübersicht",
   "Meine Lernkontrollen",
   "Abteilungen",
@@ -104,6 +106,7 @@ const pageIcons = {
   "Einsatzzentrale": "◉",
   "Beschlagnahmung": "◇",
   "Informationen": "ⓘ",
+  "Karte": "⌖",
   "Ausbilderübersicht": "□",
   "Meine Lernkontrollen": "✺",
   "Abteilungen": "▦",
@@ -139,6 +142,7 @@ const pageDescriptions = {
   "Einsatzzentrale": "Koordination laufender Einsätze und operativer Meldungen",
   "Beschlagnahmung": "Erfassung und Verwaltung beschlagnahmter Gegenstände",
   "Informationen": "Zentrale Informationen und Bewerbungsstatus verwalten",
+  "Karte": "Interaktive MG13 Karte mit Spots, Laboren, MAZ und Dealern",
   "Ausbilderübersicht": "Übersicht aller Ausbildungsmodule und Prüfungen",
   "Meine Lernkontrollen": "Eigene Lernkontrollen und Prüfungsstände einsehen",
   "Abteilungen": "Übersicht aller Abteilungen und Personal",
@@ -166,7 +170,7 @@ function appLabel(value) {
 }
 
 function warmAvatarCache() {
-  ["/assets/lspd-logo-20260515.png", ...(state.users || []).map((user) => user.avatarUrl).filter(Boolean)].forEach((url) => {
+  ["/assets/mg13.png", ...(state.users || []).map((user) => user.avatarUrl).filter(Boolean)].forEach((url) => {
     if (warmedAvatarUrls.has(url)) return;
     warmedAvatarUrls.add(url);
     const image = new Image();
@@ -241,7 +245,7 @@ function avatarMarkup(user = state.currentUser, size = "md") {
   if (user?.avatarUrl) {
     return `<img class="avatar ${size}" src="${escapeHtml(user.avatarUrl)}" alt="Avatar" loading="eager" decoding="async" fetchpriority="high">`;
   }
-  return `<img class="avatar ${size}" src="/assets/lspd-logo-20260515.png" alt="LSPD" loading="eager" decoding="async" fetchpriority="high">`;
+  return `<img class="avatar ${size}" src="/assets/mg13.png" alt="MG13" loading="eager" decoding="async" fetchpriority="high">`;
 }
 
 function rankLabel(rank) {
@@ -277,6 +281,10 @@ function iconSvg(page) {
     "Dienstblatt": '<path d="M8 4h8l2 2v14H6V4Z"/><path d="M9 9h6M9 13h6M9 17h4"/>',
     "Dashboard": '<path d="M3 13h8V3H3v10Z"/><path d="M13 21h8V11h-8v10Z"/><path d="M13 3h8v6h-8V3Z"/><path d="M3 21h8v-6H3v6Z"/>',
     "Fight": '<path d="M14.5 4.5 19 9l-9.5 9.5H5v-4.5L14.5 4.5Z"/><path d="m13 6 5 5"/><path d="M4 20h16"/>',
+    "Karte": '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15M15 6v15"/><circle cx="12" cy="12" r="2"/>',
+    "Home": '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+    "Plane": '<path d="M10 21h4l1-7 5-3a2 2 0 0 0-2-3l-5 2-2-6H8l1 8-5 3v3l6-2v5Z"/>',
+    "UserRound": '<circle cx="12" cy="8" r="4"/><path d="M6 21a6 6 0 0 1 12 0"/>',
     "Trophy": '<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/>',
     "Skull": '<path d="M12 3a8 8 0 0 0-8 8c0 3 2 5 4 6v3h8v-3c2-1 4-3 4-6a8 8 0 0 0-8-8Z"/><path d="M9 11h.01M15 11h.01M10 16h4"/>',
     "XCircle": '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
@@ -773,13 +781,13 @@ function renderPasswordChangeRequired() {
   content.innerHTML = `
     <section class="force-password-stage">
       <div class="force-password-brand">
-        <img src="/assets/lspd-logo-20260515.png" alt="LSPD">
-        <span>LSPD Dienstblatt</span>
+        <img src="/assets/mg13.png" alt="MG13">
+        <span>MG13 Dashboard</span>
       </div>
       <div class="panel force-password-panel">
         <span class="login-kicker">Sicherheitsprüfung</span>
         <h3>Passwort ändern</h3>
-        <p class="muted">Du bist mit dem Standardpasswort angemeldet. Aus Sicherheitsgründen musst du jetzt ein eigenes Passwort festlegen, bevor du das Dienstblatt sehen kannst.</p>
+        <p class="muted">Du bist mit dem Standardpasswort angemeldet. Aus Sicherheitsgründen musst du jetzt ein eigenes Passwort festlegen, bevor du das Dashboard sehen kannst.</p>
         <div class="security-note-box">
           <strong>Passwörter sind geschützt und nicht einsehbar.</strong>
           <span>Auch die IT kann dein Passwort nicht auslesen. Es kann nur auf das Standardpasswort zurückgesetzt und danach von dir neu gesetzt werden.</span>
@@ -2130,7 +2138,8 @@ function renderFluctuation() {
 }
 
 function editableItPages() {
-  return orderPages([...pages, ...adminPages, ...(state.customPages || []).map((page) => page.key), ...state.departments.filter((department) => department.id !== "direktion").map((department) => `dept:${department.id}`)]);
+  const removedPages = new Set(["Einsatzzentrale", "Beschlagnahmung", "Meine Lernkontrollen", "Abteilungen", "Ausbilderübersicht"]);
+  return orderPages([...pages.filter((page) => !removedPages.has(page)), ...adminPages, ...(state.customPages || []).map((page) => page.key), ...state.departments.filter((department) => department.id !== "direktion").map((department) => `dept:${department.id}`)]);
 }
 
 function orderPages(items) {
@@ -2530,7 +2539,7 @@ function renderIT() {
   const editablePages = editableItPages();
   const sortedRanks = [...state.ranks].sort((a, b) => b.value - a.value);
   const storedItTab = localStorage.getItem("lspd_it_tab") || "overview";
-  const itTabs = [["overview", "Übersicht"], ["members", "Mitglieder"], ["ranks", "Ränge"], ["discord", "Discord Sync"]];
+  const itTabs = [["overview", "Übersicht"], ["pages", "Reiter & Rechte"], ["members", "Mitglieder"], ["ranks", "Ränge"], ["discord", "Discord Sync"]];
   const visibleItTabs = itTabs;
   const itTab = visibleItTabs.some(([id]) => id === storedItTab) ? storedItTab : "overview";
   content.innerHTML = `
@@ -2548,7 +2557,7 @@ function renderIT() {
 
     <section class="it-workbench">
       ${itTab === "overview" ? renderITOverviewPanel(editablePages) : ""}
-      <div class="panel it-section-card it-pages-card hidden">
+      <div class="panel it-section-card it-pages-card ${itTab === "pages" ? "" : "hidden"}">
         <div class="it-section-title">
           <span>03</span>
           <div><h3>Reiter & Rechte</h3><p class="muted">Namen ändern und Rechte direkt pro Reiter öffnen.</p></div>
@@ -2560,7 +2569,7 @@ function renderIT() {
         </div>
         <div class="edit-list it-compact-list">
           ${editablePages.map((page, index) => `
-            ${isInternalSheetPage(page) && !isInternalSheetPage(editablePages[index - 1] || "") ? `<div class="edit-section-divider"><span>Abteilungsblätter</span><small>Direktion, IT und Abteilungen mit eigenen Rechten für Ansicht, Personal, Notizen und interne Buttons.</small></div>` : ""}
+            ${isInternalSheetPage(page) && !isInternalSheetPage(editablePages[index - 1] || "") ? `<div class="edit-section-divider"><span>Leaderschaft</span><small>Leader, IT und freigegebene Reiter mit eigenen Rechten für Ansicht, Personal, Notizen und interne Buttons.</small></div>` : ""}
             <label class="edit-row">
               <span class="edit-icon">${iconSvg(page)}</span>
               <span class="edit-name">${restrictedPageEditIcon(page)}${escapeHtml(isDepartmentPage(page) ? navLabel(page) : page)}</span>
@@ -9657,6 +9666,10 @@ function fightResultClass(result) {
 async function bootstrap() {
   const data = await api("/api/bootstrap", { silent: true });
   Object.assign(state, data);
+  state.dealerMarkers = [];
+  fetchDealerMarkers().then(() => {
+    if (["Dashboard", "Karte"].includes(state.page)) renderApp();
+  });
   warmAvatarCache();
   syncDevModeAuthStorage();
   const visiblePages = getVisiblePages();
@@ -9680,6 +9693,7 @@ function getVisiblePages() {
   const hiddenPolicePages = new Set(["Dienstblatt", "Einsatzzentrale", "Beschlagnahmung", "Meine Lernkontrollen", "Abteilungen", "Ausbilderübersicht"]);
   const basePages = [
     "Dashboard",
+    "Karte",
     "Fight",
     ...pages.filter((page) => !hiddenPolicePages.has(page)).filter(canSeeDepartment),
     ...adminPages.filter(canSeeDepartment),
@@ -9698,6 +9712,7 @@ function navLabel(page) {
 
 function pageDescription(page) {
   if (page === "Dashboard") return "MG13 Uebersicht, Spots, Dealer und Labor";
+  if (page === "Karte") return "Interaktive GTA Karte fuer Spots, Labor, MAZ und Dealer";
   if (page === "Fight") return "Fight erstellen, Statistik ansehen und Archiv pflegen";
   if (page === "IT") return "Fraktionen, Ränge und Accounts verwalten";
   if (page === "Direktion") return "Leader, Anwesenheit und Mitgliedersteuerung";
@@ -9736,15 +9751,15 @@ function renderSidebarProfile() {
 function navGroupFor(page) {
   if (page === "Direktion") return "Leaderschaft";
   if (page === "IT") return "System";
-  if (isDepartmentPage(page)) return "Abteilungen";
-  if (["Profil", "Postfach", "Kalender", "Changelog"].includes(page)) return "Account";
+  if (isDepartmentPage(page)) return "Leaderschaft";
+  if (["Profil", "Postfach", "Kalender", "Changelog"].includes(page)) return "Allgemein";
   return "Allgemein";
 }
 
 function renderNavigation() {
   $(".profile-card").innerHTML = renderSidebarProfile();
   const pages = getVisiblePages();
-  const order = ["Allgemein", "Leaderschaft", "Abteilungen", "Account", "System"];
+  const order = ["Allgemein", "Leaderschaft", "System"];
   $("#navigation").innerHTML = order.map((group) => {
     const groupPages = pages.filter((page) => navGroupFor(page) === group);
     if (!groupPages.length) return "";
@@ -9780,6 +9795,7 @@ function renderTopbar() {
 
 function renderPage() {
   if (state.page === "Dienstblatt" || state.page === "Dashboard") return renderDashboard();
+  if (state.page === "Karte") return renderMapPage();
   if (state.page === "Fight") return renderFight();
   if (state.page === "Mitglieder") return renderMembers();
   if (state.page === "Mitgliederfluktation") return renderFluctuation();
@@ -9793,41 +9809,52 @@ function renderPage() {
   return renderTemplate(state.page);
 }
 
+function mapMarkers() {
+  return [...(state.settings?.mapMarkers || []), ...(state.dealerMarkers || [])];
+}
+
+function activeMapMarkers(category) {
+  return mapMarkers().filter((marker) => marker.category === category && marker.active);
+}
+
+function markerIconName(category) {
+  if (category === "Labor") return "Home";
+  if (category === "MAZ") return "Plane";
+  if (category === "Lester") return "UserRound";
+  return "Spot";
+}
+
+function renderActiveMarkerList(category, title) {
+  const items = activeMapMarkers(category);
+  return `
+    <article class="panel gang-panel active-marker-panel">
+      <div class="panel-header"><h3>${iconSvg(markerIconName(category))} ${escapeHtml(title)}</h3><span class="gang-chip ${items.length ? "green" : ""}">${items.length} Aktiv</span></div>
+      <div class="marker-mini-list">
+        ${items.map((marker) => `
+          <button class="gang-list-row active dashboard-marker-open" data-marker-id="${escapeHtml(marker.id)}">
+            <span><strong>${escapeHtml(marker.title)}</strong><small>${escapeHtml(marker.description || `x: ${marker.x}, y: ${marker.y}`)}</small></span>
+            <b>${iconSvg(markerIconName(category))}</b>
+          </button>
+        `).join("") || `<p class="muted">Keine aktiven Einträge.</p>`}
+      </div>
+    </article>
+  `;
+}
+
 function renderDashboard() {
   const stats = fightStats();
   content.innerHTML = `
-    <section class="gang-hero">
-      <img src="/assets/mg13.png" alt="MG13">
-      <div>
-        <p class="eyebrow">MG13 Dashboard</p>
-        <h1>Gang Control</h1>
-        <span>Fights, Spots, Dealer und Labor auf einen Blick.</span>
-      </div>
-    </section>
-    <section class="grid-4 dashboard-stats gang-stats">
+    <section class="grid-4 dashboard-stats gang-stats dashboard-compact">
       ${renderGangStat("WinRate", `${stats.rate}%`, `${stats.wins}W / ${stats.losses}L (${stats.total} Fights)`, "Trophy")}
       ${renderGangStat("Wins", stats.wins, "Gewonnene Fights", "Trophy")}
       ${renderGangStat("Losses", stats.losses, "Verlorene Fights", "Skull")}
       ${renderGangStat("Gesamt", stats.total, `${stats.noFights} No Fight`, "Fight")}
     </section>
     <section class="gang-dashboard-grid">
-      <article class="panel gang-panel">
-        <div class="panel-header"><h3>${iconSvg("Spot")} Lester Spots</h3><span class="gang-chip green">1 Aktiv</span></div>
-        ${["Lester Auktionshalle", "Lester Dreiecksdach", "Lester Staatsbank", "Lester Lifeinvader"].map((spot, index) => `
-          <div class="gang-list-row ${index === 2 ? "active" : ""}">
-            <span><strong>${spot}</strong><small>${index === 2 ? "Aktiv" : "Inaktiv"}</small></span>
-            <b>${index === 2 ? "x" : "✓"}</b>
-          </div>
-        `).join("")}
-      </article>
-      <article class="panel gang-panel">
-        <div class="panel-header"><h3>Aktive Dealer</h3><button class="ghost-btn">Alle anzeigen</button></div>
-        <div class="dealer-card"><span></span><div><strong>West Highway 3</strong><small>Aktiv</small></div>${iconSvg("Spot")}</div>
-      </article>
-      <article class="panel gang-panel">
-        <div class="panel-header"><h3>Aktuelles Labor</h3><button class="ghost-btn">Alle anzeigen</button></div>
-        <div class="lab-map"><span class="lab-dot"></span><div><b>AKTIV</b><strong>Oelfelder 3</strong><small>x: 5000.0, y: 4500.0</small></div></div>
-      </article>
+      ${renderActiveMarkerList("Lester", "Lester Spots")}
+      ${renderActiveMarkerList("Dealer", "Aktive Dealer")}
+      ${renderActiveMarkerList("Labor", "Aktuelles Labor")}
+      ${renderActiveMarkerList("MAZ", "Aktive MAZ")}
     </section>
     <section class="panel">
       <div class="panel-header">
@@ -9838,10 +9865,234 @@ function renderDashboard() {
     </section>
   `;
   $("#addNoteBtn")?.addEventListener("click", () => openNoteModal());
+  document.querySelectorAll(".dashboard-marker-open").forEach((button) => button.addEventListener("click", () => {
+    state.page = "Karte";
+    localStorage.setItem("lspd_page", state.page);
+    localStorage.setItem("mg13_focus_marker", button.dataset.markerId);
+    renderApp();
+  }));
 }
 
 function renderGangStat(label, value, subline, icon) {
   return `<div class="stat-card gang-stat-card"><span>${escapeHtml(label)}</span><i>${iconSvg(icon)}</i><strong>${escapeHtml(value)}</strong><small>${escapeHtml(subline)}</small></div>`;
+}
+
+let mapDraftPoint = null;
+let mapZoom = Number(localStorage.getItem("mg13_map_zoom") || "1");
+let mapPan = JSON.parse(localStorage.getItem("mg13_map_pan") || "{\"x\":0,\"y\":0}");
+let mapAddMode = false;
+
+async function fetchDealerMarkers() {
+  try {
+    const data = await api("/api/map/dealers", { silent: true });
+    state.dealerMarkers = data.dealers || [];
+  } catch {
+    state.dealerMarkers = [];
+  }
+}
+
+function mapPercent(marker) {
+  const x = Math.max(-8500, Math.min(8500, Number(marker.x || 0)));
+  const y = Math.max(-8500, Math.min(8500, Number(marker.y || 0)));
+  return {
+    left: ((x + 8500) / 17000) * 100,
+    top: ((8500 - y) / 17000) * 100
+  };
+}
+
+function screenToMapPoint(event, board) {
+  const rect = board.getBoundingClientRect();
+  const left = ((event.clientX - rect.left) / rect.width) * 100;
+  const top = ((event.clientY - rect.top) / rect.height) * 100;
+  return {
+    x: Math.round(((left / 100) * 17000 - 8500) * 100) / 100,
+    y: Math.round((8500 - (top / 100) * 17000) * 100) / 100
+  };
+}
+
+function markerCategoryClass(category) {
+  return `marker-${String(category || "").toLowerCase()}`;
+}
+
+function renderMapMarker(marker) {
+  const pos = mapPercent(marker);
+  return `
+    <button class="map-marker ${markerCategoryClass(marker.category)} ${marker.active ? "active" : ""}" data-marker-id="${escapeHtml(marker.id)}" style="left:${pos.left}%;top:${pos.top}%;" title="${escapeHtml(marker.title)}">
+      ${iconSvg(markerIconName(marker.category))}
+    </button>
+  `;
+}
+
+function renderMapCategoryList(category) {
+  const items = mapMarkers().filter((marker) => marker.category === category);
+  return `
+    <section class="map-side-section">
+      <h4>${escapeHtml(category)} <span>${items.filter((item) => item.active).length}/${items.length}</span></h4>
+      ${items.slice(0, 40).map((marker) => `
+        <button class="map-side-row" data-marker-id="${escapeHtml(marker.id)}">
+          <i class="${markerCategoryClass(marker.category)}">${iconSvg(markerIconName(marker.category))}</i>
+          <span><strong>${escapeHtml(marker.title)}</strong><small>${marker.active ? "Aktiv" : "Inaktiv"}</small></span>
+        </button>
+      `).join("") || `<p class="muted">Noch keine Einträge.</p>`}
+    </section>
+  `;
+}
+
+function renderMapPage() {
+  const markers = mapMarkers();
+  content.innerHTML = `
+    <section class="map-layout">
+      <aside class="panel map-sidebar">
+        <div class="panel-header">
+          <div><h3>Karte</h3><p class="muted">Dealer werden aus der API geladen, eigene Marker werden gespeichert.</p></div>
+        </div>
+        <button class="blue-btn full" id="startMarkerAdd">${iconSvg("Plus")} Markierung setzen</button>
+        <div class="map-legend">
+          ${["Dealer", "Lester", "Labor", "MAZ"].map((category) => `<span class="${markerCategoryClass(category)}">${iconSvg(markerIconName(category))} ${category}</span>`).join("")}
+        </div>
+        ${["Labor", "Lester", "MAZ", "Dealer"].map(renderMapCategoryList).join("")}
+      </aside>
+      <section class="panel map-stage-panel">
+        <div class="map-toolbar">
+          <span>${markers.length} Markierungen</span>
+          <div class="button-row">
+            <button class="ghost-btn" id="mapZoomOut">-</button>
+            <button class="ghost-btn" id="mapReset">Reset</button>
+            <button class="ghost-btn" id="mapZoomIn">+</button>
+          </div>
+        </div>
+        <div class="gta-map-shell ${mapAddMode ? "placing" : ""}" id="gtaMapShell">
+          <div class="gta-map-board" id="gtaMapBoard" style="transform: translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom});">
+            <div class="gta-map-bg"></div>
+            ${markers.map(renderMapMarker).join("")}
+            ${mapDraftPoint ? `<span class="map-draft-pin" style="left:${mapPercent(mapDraftPoint).left}%;top:${mapPercent(mapDraftPoint).top}%;"></span>` : ""}
+          </div>
+        </div>
+        <p class="muted map-hint">${mapAddMode ? "Klicke auf die Karte, um die Position für eine neue Markierung zu wählen." : "Scrollen zoomt, Marker anklicken zeigt Details."}</p>
+      </section>
+    </section>
+  `;
+  bindMapPage();
+  const focusId = localStorage.getItem("mg13_focus_marker");
+  if (focusId) {
+    localStorage.removeItem("mg13_focus_marker");
+    const marker = mapMarkers().find((item) => item.id === focusId);
+    if (marker) openMapMarkerModal(marker);
+  }
+}
+
+function bindMapPage() {
+  $("#startMarkerAdd")?.addEventListener("click", () => {
+    mapAddMode = true;
+    mapDraftPoint = null;
+    renderMapPage();
+  });
+  $("#mapZoomIn")?.addEventListener("click", () => updateMapZoom(mapZoom + 0.2));
+  $("#mapZoomOut")?.addEventListener("click", () => updateMapZoom(mapZoom - 0.2));
+  $("#mapReset")?.addEventListener("click", () => {
+    mapZoom = 1;
+    mapPan = { x: 0, y: 0 };
+    saveMapView();
+    renderMapPage();
+  });
+  const shell = $("#gtaMapShell");
+  const board = $("#gtaMapBoard");
+  shell?.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    updateMapZoom(mapZoom + (event.deltaY < 0 ? 0.12 : -0.12));
+  }, { passive: false });
+  let dragStart = null;
+  shell?.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".map-marker") || mapAddMode) return;
+    dragStart = { x: event.clientX, y: event.clientY, pan: { ...mapPan } };
+    shell.setPointerCapture?.(event.pointerId);
+  });
+  shell?.addEventListener("pointermove", (event) => {
+    if (!dragStart) return;
+    mapPan = { x: dragStart.pan.x + event.clientX - dragStart.x, y: dragStart.pan.y + event.clientY - dragStart.y };
+    if (board) board.style.transform = `translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom})`;
+  });
+  shell?.addEventListener("pointerup", () => {
+    if (dragStart) saveMapView();
+    dragStart = null;
+  });
+  board?.addEventListener("click", (event) => {
+    if (event.target.closest(".map-marker")) return;
+    if (!mapAddMode) return;
+    mapDraftPoint = screenToMapPoint(event, board);
+    mapAddMode = false;
+    openMapMarkerModal(null, mapDraftPoint);
+  });
+  document.querySelectorAll(".map-marker, .map-side-row").forEach((button) => button.addEventListener("click", () => {
+    const marker = mapMarkers().find((item) => item.id === button.dataset.markerId);
+    if (marker) openMapMarkerModal(marker);
+  }));
+}
+
+function updateMapZoom(value) {
+  mapZoom = Math.max(0.55, Math.min(3, Math.round(value * 100) / 100));
+  saveMapView();
+  renderMapPage();
+}
+
+function saveMapView() {
+  localStorage.setItem("mg13_map_zoom", String(mapZoom));
+  localStorage.setItem("mg13_map_pan", JSON.stringify(mapPan));
+}
+
+function openMapMarkerModal(marker = null, point = null) {
+  const isDealer = marker?.category === "Dealer";
+  const isEdit = Boolean(marker) && !isDealer;
+  const categories = ["Lester", "Labor", "MAZ"];
+  const x = marker?.x ?? point?.x ?? 0;
+  const y = marker?.y ?? point?.y ?? 0;
+  openModal(`
+    <h3>${marker ? escapeHtml(marker.title) : "Markierung erstellen"}</h3>
+    <div class="marker-detail-head ${markerCategoryClass(marker?.category || "Lester")}">
+      <i>${iconSvg(markerIconName(marker?.category || "Lester"))}</i>
+      <span>${escapeHtml(marker?.category || "Neue Markierung")} · x: ${escapeHtml(x)} / y: ${escapeHtml(y)}</span>
+    </div>
+    ${marker?.imageUrl ? `<img class="marker-preview-image" src="${escapeHtml(marker.imageUrl)}" alt="${escapeHtml(marker.title)}">` : ""}
+    <div class="form-grid">
+      <label>Name<input id="markerTitle" value="${escapeHtml(marker?.title || "")}" ${isDealer ? "readonly" : ""}></label>
+      <label>Kategorie<select id="markerCategory" ${isDealer ? "disabled" : ""}>${categories.map((category) => `<option ${marker?.category === category ? "selected" : ""}>${category}</option>`).join("")}</select></label>
+      <label>X<input id="markerX" type="number" step="0.01" value="${escapeHtml(x)}" ${isDealer ? "readonly" : ""}></label>
+      <label>Y<input id="markerY" type="number" step="0.01" value="${escapeHtml(y)}" ${isDealer ? "readonly" : ""}></label>
+      <label class="full">Bild-Link<input id="markerImageUrl" value="${escapeHtml(marker?.imageUrl || "")}" ${isDealer ? "readonly" : ""} placeholder="https://..."></label>
+      <label class="full">Info / Beschreibung<textarea id="markerDescription">${escapeHtml(marker?.description || "")}</textarea></label>
+      <label class="toggle-row full"><input id="markerActive" type="checkbox" ${marker?.active ? "checked" : ""}><span>Aktiv</span></label>
+    </div>
+    ${marker?.link ? `<a class="ghost-btn full" href="${escapeHtml(marker.link)}" target="_blank" rel="noreferrer">Dealermap-Link öffnen</a>` : ""}
+    <p id="modalError" class="form-error"></p>
+    <div class="modal-actions">
+      <button class="ghost-btn" data-close>Schließen</button>
+      ${isEdit ? `<button class="mini-icon danger" id="deleteMarker">${actionIcon("delete")}</button>` : ""}
+      <button class="blue-btn" id="saveMarker">${marker ? "Speichern" : "Markierung speichern"}</button>
+    </div>
+  `, (modal) => {
+    modal.querySelector("#saveMarker").addEventListener("click", async () => {
+      try {
+        if (isDealer) {
+          await api(`/api/map/dealers/${encodeURIComponent(marker.id)}`, { method: "PATCH", body: JSON.stringify({ active: $("#markerActive").checked, description: $("#markerDescription").value }) });
+          await fetchDealerMarkers();
+        } else {
+          const body = JSON.stringify({ title: $("#markerTitle").value, category: $("#markerCategory").value, x: $("#markerX").value, y: $("#markerY").value, imageUrl: $("#markerImageUrl").value, description: $("#markerDescription").value, active: $("#markerActive").checked });
+          const data = await api(isEdit ? `/api/map/markers/${marker.id}` : "/api/map/markers", { method: isEdit ? "PATCH" : "POST", body });
+          state.settings = data.settings;
+        }
+        closeModal();
+        renderMapPage();
+      } catch (error) {
+        $("#modalError").textContent = error.message;
+      }
+    });
+    modal.querySelector("#deleteMarker")?.addEventListener("click", async () => {
+      const data = await api(`/api/map/markers/${marker.id}`, { method: "DELETE" });
+      state.settings = data.settings;
+      closeModal();
+      renderMapPage();
+    });
+  });
 }
 
 function renderFight() {
@@ -9967,6 +10218,7 @@ function renderGangIT() {
 const renderFullIT = renderIT;
 renderIT = function renderITWithFightFactions() {
   renderFullIT();
+  if ((localStorage.getItem("lspd_it_tab") || "overview") !== "overview") return;
   const workbench = content.querySelector(".it-workbench") || content;
   workbench.insertAdjacentHTML("afterbegin", `
     <section class="panel it-section gang-faction-admin">
@@ -10016,6 +10268,132 @@ function bindGangFactionAdmin() {
       renderIT();
     }
   })));
+}
+
+function sanitizeInformationBody(text = "") {
+  const blocked = /(sondergenehmigungen|rechte definition|fraktionen)/i;
+  return String(text || "").split(/\r?\n/).filter((line) => !blocked.test(line)).join("\n").trim();
+}
+
+function renderInformation() {
+  const links = state.settings.informationLinks || [];
+  const doc = informationDocs()[0] || { id: makeTrainingId("infodoc"), title: "Vorschriften", body: "" };
+  const body = sanitizeInformationBody(doc.body || state.settings.informationText || "");
+  const canEdit = canAccess("actions", "manageInformation", "Direktion");
+  content.innerHTML = `
+    <section class="panel information-combined-card">
+      <div class="panel-header">
+        <div>
+          <h3>${iconSvg("Informationen")} Vorschriften & Weiterleitungen</h3>
+          <p class="muted">Direkt sichtbare MG13 Informationen ohne einzelne Vorschriften-Kacheln.</p>
+        </div>
+        ${canEdit ? `<button class="blue-btn" id="editCombinedInfo">${actionIcon("edit")} Bearbeiten</button>` : ""}
+      </div>
+      <div class="combined-info-grid">
+        <article class="info-text-paper">
+          <h4>Vorschriften</h4>
+          <div class="rich-text-view">${formatInformationDocText(body || "Noch keine Vorschriften eingetragen.")}</div>
+        </article>
+        <article class="info-link-list">
+          <h4>Link Weiterleitungen</h4>
+          ${links.map((link) => `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(link.title)}</strong><small>${escapeHtml(link.url)}</small></a>`).join("") || `<p class="muted">Noch keine Weiterleitungen.</p>`}
+        </article>
+      </div>
+    </section>
+  `;
+  $("#editCombinedInfo")?.addEventListener("click", () => openCombinedInformationModal(doc));
+}
+
+function openCombinedInformationModal(doc) {
+  const links = state.settings.informationLinks || [];
+  openModal(`
+    <h3>Informationen bearbeiten</h3>
+    <label>Vorschriften Text<textarea id="combinedInfoBody" rows="12">${escapeHtml(sanitizeInformationBody(doc.body || ""))}</textarea></label>
+    <div class="link-editor-list" id="combinedInfoLinks">
+      ${[...links, { id: "", title: "", url: "" }].map((link) => `
+        <div class="edit-row info-link-edit-row">
+          <input data-link-title value="${escapeHtml(link.title || "")}" placeholder="Titel">
+          <input data-link-url value="${escapeHtml(link.url || "")}" placeholder="https://...">
+        </div>
+      `).join("")}
+    </div>
+    <p id="modalError" class="form-error"></p>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button><button class="blue-btn" id="saveCombinedInfo">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveCombinedInfo").addEventListener("click", async () => {
+      try {
+        const nextDoc = { ...doc, title: "Vorschriften", body: sanitizeInformationBody($("#combinedInfoBody").value), updatedAt: new Date().toISOString(), updatedBy: fullName(state.currentUser) };
+        const nextLinks = Array.from(modal.querySelectorAll(".info-link-edit-row")).map((row) => ({
+          id: makeTrainingId("link"),
+          title: row.querySelector("[data-link-title]").value.trim(),
+          url: row.querySelector("[data-link-url]").value.trim()
+        })).filter((link) => link.title && link.url);
+        await saveInformationPatch({
+          informationText: nextDoc.body,
+          informationDocs: upsertById(informationDocs(), nextDoc),
+          informationLinks: nextLinks,
+          informationRightsText: "",
+          informationPermits: [],
+          informationFactions: []
+        });
+        closeModal();
+        renderInformation();
+      } catch (error) {
+        $("#modalError").textContent = error.message;
+      }
+    });
+  });
+}
+
+function renderProfile() {
+  const user = state.currentUser;
+  if (!user) return;
+  const memberships = (state.departments || []).flatMap((department) => (department.members || [])
+    .filter((member) => member.userId === user.id)
+    .map((member) => `${department.name} · ${appLabel(member.position)}`));
+  content.innerHTML = `
+    <section class="profile-redesign">
+      <article class="panel profile-identity-card">
+        ${avatarMarkup(user, "xl")}
+        <div>
+          <p class="eyebrow">MG13 Profil</p>
+          <h3>${escapeHtml(fullName(user))}</h3>
+          <strong class="profile-rank-highlight">${escapeHtml(rankLabel(user.rank))}</strong>
+          <span>${escapeHtml(appLabel(user.role || ""))}${memberships.length ? ` · ${escapeHtml(memberships.join(" / "))}` : ""}</span>
+        </div>
+        <div class="profile-action-stack">
+          <button class="orange-btn action-btn" id="openPasswordModal">${iconSvg("IT")} Passwort</button>
+          <button class="blue-btn action-btn" id="avatarPickBtn">${iconSvg("Profil")} Avatar</button>
+          <input id="avatarFileInput" class="hidden" type="file" accept="image/*">
+        </div>
+      </article>
+      <section class="profile-mini-grid">
+        <article class="panel"><span>Telefon</span><strong>${escapeHtml(user.phone || "-")}</strong></article>
+        <article class="panel"><span>Beitritt</span><strong>${formatDate(user.joinedAt)}</strong></article>
+        <article class="panel"><span>Status</span><strong>${escapeHtml(userAccountStatus(user))}</strong></article>
+      </section>
+      <section class="panel profile-tabs-panel">
+        <div class="tabs-row">
+          <button class="${state.profileTab === "Abmeldung" ? "tab-active" : ""}" data-profile-tab="Abmeldung">Abmeldung</button>
+          <button class="${state.profileTab === "Discord" ? "tab-active" : ""}" data-profile-tab="Discord">Discord</button>
+        </div>
+        ${state.profileTab === "Discord" ? `
+          <div class="info-box full"><h3>Discord</h3><p class="muted">${user.discordId ? `Verknüpft mit Discord ID ${escapeHtml(user.discordId)}${user.discordName ? ` (${escapeHtml(user.discordName)})` : ""}.` : "Noch kein Discord Account verknüpft."}</p><button class="blue-btn" id="linkDiscordFromProfile">Discord verknüpfen</button></div>
+        ` : `
+          <div class="info-box full"><h3>Abmeldung</h3><p class="muted">Hier kommt später die Abmeldungsfunktion für MG13 rein.</p></div>
+        `}
+      </section>
+    </section>
+  `;
+  document.querySelectorAll("[data-profile-tab]").forEach((button) => button.addEventListener("click", () => {
+    state.profileTab = button.dataset.profileTab;
+    localStorage.setItem("lspd_profile_tab", state.profileTab);
+    renderProfile();
+  }));
+  $("#openPasswordModal")?.addEventListener("click", openPasswordModal);
+  $("#avatarPickBtn")?.addEventListener("click", () => $("#avatarFileInput").click());
+  $("#avatarFileInput")?.addEventListener("change", uploadAvatarFile);
+  $("#linkDiscordFromProfile")?.addEventListener("click", () => startDiscordOAuth("link"));
 }
 
 document.addEventListener("click", (event) => {

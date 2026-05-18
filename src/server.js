@@ -12,6 +12,7 @@ const STORAGE_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : 
 const DB_FILE = path.join(STORAGE_DIR, "dienstblatt.json");
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DEFAULT_PASSWORD = "MG12345";
+const DEALER_API_URL = "https://dealermap.de/api.php?key=b5da85d5a61f904b64a134898d0d7ffd";
 const BOOTSTRAP_LOGIN = {
   firstName: "Daniel",
   lastName: "Hebel-Jameson",
@@ -192,6 +193,8 @@ function ensureStorage() {
       calendarEvents: [],
       seizures: [],
       fights: [],
+      mapMarkers: [],
+      dealerMarkerStates: {},
       gangFactions: ["MG13"],
       fluctuation: [],
       uprankRules: defaultUprankRules(),
@@ -243,6 +246,8 @@ function readDb() {
   db.settings.calendarEvents = Array.isArray(db.settings.calendarEvents) ? db.settings.calendarEvents : [];
   db.settings.seizures = Array.isArray(db.settings.seizures) ? db.settings.seizures : [];
   db.settings.fights = normalizeFights(db.settings.fights);
+  db.settings.mapMarkers = normalizeMapMarkers(db.settings.mapMarkers);
+  db.settings.dealerMarkerStates = db.settings.dealerMarkerStates && typeof db.settings.dealerMarkerStates === "object" ? db.settings.dealerMarkerStates : {};
   db.settings.gangFactions = normalizeGangFactions(db.settings.gangFactions);
   db.settings.uprankRules = normalizeUprankRules(db.settings.uprankRules);
   db.settings.uprankAdjustments = Array.isArray(db.settings.uprankAdjustments) ? db.settings.uprankAdjustments : [];
@@ -462,6 +467,64 @@ function normalizeUprankRules(existingRules) {
 
 function writeDb(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+}
+
+function normalizeMapMarkers(value) {
+  const categories = new Set(["Lester", "Labor", "MAZ"]);
+  return (Array.isArray(value) ? value : [])
+    .map((marker) => ({
+      id: String(marker.id || makeId("marker")),
+      title: String(marker.title || "").trim(),
+      category: categories.has(marker.category) ? marker.category : "Lester",
+      x: Number(marker.x),
+      y: Number(marker.y),
+      description: String(marker.description || "").trim(),
+      imageUrl: String(marker.imageUrl || "").trim(),
+      active: Boolean(marker.active),
+      createdAt: String(marker.createdAt || nowIso()),
+      updatedAt: String(marker.updatedAt || "")
+    }))
+    .filter((marker) => marker.title && Number.isFinite(marker.x) && Number.isFinite(marker.y));
+}
+
+function dealerIdFor(item) {
+  return `dealer:${String(item.title || "").trim()}:${String(item.latitude || "").trim()}:${String(item.longitude || "").trim()}`;
+}
+
+function normalizeDealerMarker(item, states = {}) {
+  const id = dealerIdFor(item);
+  return {
+    id,
+    external: true,
+    title: String(item.title || "Dealer").trim(),
+    category: "Dealer",
+    x: Number(item.latitude),
+    y: Number(item.longitude),
+    imageUrl: String(item.url || "").trim(),
+    link: String(item.link || "").trim(),
+    active: Boolean(states[id]?.active),
+    description: String(states[id]?.description || "").trim(),
+    updatedAt: String(states[id]?.updatedAt || "")
+  };
+}
+
+function fetchDealerMarkers(db) {
+  return new Promise((resolve) => {
+    https.get(DEALER_API_URL, { headers: { "User-Agent": "MG13-Dashboard/1.0" } }, (remote) => {
+      let body = "";
+      remote.setEncoding("utf8");
+      remote.on("data", (chunk) => { body += chunk; });
+      remote.on("end", () => {
+        try {
+          const parsed = JSON.parse(body);
+          const states = db?.settings?.dealerMarkerStates || {};
+          resolve((Array.isArray(parsed) ? parsed : []).map((item) => normalizeDealerMarker(item, states)).filter((item) => Number.isFinite(item.x) && Number.isFinite(item.y)));
+        } catch {
+          resolve([]);
+        }
+      });
+    }).on("error", () => resolve([]));
+  });
 }
 
 function ensureBootstrapLogin() {
@@ -1206,6 +1269,77 @@ app.delete("/api/fights/:id", requireAuth, (req, res) => {
   db.settings.fights = normalizeFights(db.settings.fights).filter((fight) => fight.id !== req.params.id);
   writeDb(db);
   res.json({ ok: true, settings: publicSettings(db.settings) });
+});
+
+app.get("/api/map/dealers", requireAuth, async (req, res) => {
+  const dealers = await fetchDealerMarkers(req.db);
+  res.json({ dealers });
+});
+
+app.post("/api/map/markers", requireAuth, (req, res) => {
+  const category = String(req.body.category || "").trim();
+  const title = String(req.body.title || "").trim();
+  const x = Number(req.body.x);
+  const y = Number(req.body.y);
+  if (!["Lester", "Labor", "MAZ"].includes(category)) return res.status(400).json({ error: "Ungueltige Kategorie." });
+  if (!title || !Number.isFinite(x) || !Number.isFinite(y)) return res.status(400).json({ error: "Name und Kartenposition sind Pflichtfelder." });
+  const marker = {
+    id: makeId("marker"),
+    title,
+    category,
+    x,
+    y,
+    description: String(req.body.description || "").trim(),
+    imageUrl: String(req.body.imageUrl || "").trim(),
+    active: Boolean(req.body.active),
+    createdAt: nowIso(),
+    updatedAt: ""
+  };
+  req.db.settings.mapMarkers = normalizeMapMarkers([marker, ...(req.db.settings.mapMarkers || [])]);
+  logAction(req.db, req.user, "Kartenmarkierung erstellt", category, { marker });
+  writeDb(req.db);
+  res.status(201).json({ marker, settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/map/markers/:id", requireAuth, (req, res) => {
+  const markers = normalizeMapMarkers(req.db.settings.mapMarkers);
+  const marker = markers.find((item) => item.id === req.params.id);
+  if (!marker) return res.status(404).json({ error: "Markierung nicht gefunden." });
+  const category = String(req.body.category || marker.category).trim();
+  const patch = {
+    ...marker,
+    title: String(req.body.title || marker.title).trim(),
+    category: ["Lester", "Labor", "MAZ"].includes(category) ? category : marker.category,
+    x: Number.isFinite(Number(req.body.x)) ? Number(req.body.x) : marker.x,
+    y: Number.isFinite(Number(req.body.y)) ? Number(req.body.y) : marker.y,
+    description: typeof req.body.description === "string" ? req.body.description.trim() : marker.description,
+    imageUrl: typeof req.body.imageUrl === "string" ? req.body.imageUrl.trim() : marker.imageUrl,
+    active: typeof req.body.active === "boolean" ? req.body.active : marker.active,
+    updatedAt: nowIso()
+  };
+  req.db.settings.mapMarkers = normalizeMapMarkers(markers.map((item) => item.id === patch.id ? patch : item));
+  logAction(req.db, req.user, "Kartenmarkierung geändert", patch.category, { before: marker, after: patch });
+  writeDb(req.db);
+  res.json({ marker: patch, settings: publicSettings(req.db.settings) });
+});
+
+app.delete("/api/map/markers/:id", requireAuth, (req, res) => {
+  const before = normalizeMapMarkers(req.db.settings.mapMarkers);
+  req.db.settings.mapMarkers = before.filter((marker) => marker.id !== req.params.id);
+  writeDb(req.db);
+  res.json({ ok: true, settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/map/dealers/:id", requireAuth, (req, res) => {
+  const id = String(req.params.id || "");
+  req.db.settings.dealerMarkerStates = req.db.settings.dealerMarkerStates || {};
+  req.db.settings.dealerMarkerStates[id] = {
+    active: Boolean(req.body.active),
+    description: String(req.body.description || "").trim(),
+    updatedAt: nowIso()
+  };
+  writeDb(req.db);
+  res.json({ ok: true, settings: publicSettings(req.db.settings) });
 });
 
 app.post("/api/factions", requireAuth, requireRole("IT"), (req, res) => {
@@ -2466,9 +2600,13 @@ function runScheduledRestarts() {
     db.settings.restartLastRun = db.settings.restartLastRun || {};
     if (db.settings.restartLastRun[time] === date) return;
     const count = endAllActiveDuty(db, { firstName: "System", lastName: "Restart" }, "Restart: Dienste automatisch beendet");
+    db.settings.mapMarkers = normalizeMapMarkers(db.settings.mapMarkers).map((marker) => ({ ...marker, active: false, updatedAt: nowIso() }));
+    Object.keys(db.settings.dealerMarkerStates || {}).forEach((id) => {
+      db.settings.dealerMarkerStates[id] = { ...(db.settings.dealerMarkerStates[id] || {}), active: false, updatedAt: nowIso() };
+    });
     db.settings.restartLastRun[time] = date;
-    if (count > 0) writeDb(db);
-    else writeDb(db);
+    logAction(db, { firstName: "System", lastName: "Restart" }, "Kartenstatus zurückgesetzt", "Restarts", { dutyEnded: count });
+    writeDb(db);
   } catch (error) {
     console.error("Restart scheduler failed:", error);
   }
