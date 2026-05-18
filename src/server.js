@@ -161,9 +161,8 @@ function ensureStorage() {
       {
         id: adminId,
         firstName: "Admin",
-        lastName: "Direktion",
+        lastName: "Leader",
         phone: "0000",
-        dn: "1",
         rank: 12,
         role: "IT",
         departments: ["Direktion"],
@@ -265,8 +264,8 @@ function readDb() {
   db.disciplinary = Array.isArray(db.disciplinary) ? db.disciplinary : [];
   db.users.forEach((user) => {
     if (!user.accountStatus) {
-      const latestStatusEntry = db.disciplinary.find((entry) => entry.userId === user.id && ["Suspendierung", "Sperre", "Entsperrt", "Entlassen"].includes(entry.type));
-      user.accountStatus = user.terminated ? "Entlassen" : latestStatusEntry?.type === "Suspendierung" ? "Suspendiert" : user.locked ? "Gesperrt" : "Aktiv";
+      const latestStatusEntry = db.disciplinary.find((entry) => entry.userId === user.id && ["Suspendierung", "Sperre", "Entsperrt", "Entlassen", "Uninvited"].includes(entry.type));
+      user.accountStatus = user.terminated ? "Uninvited" : latestStatusEntry?.type === "Suspendierung" ? "Suspendiert" : user.locked ? "Gesperrt" : "Aktiv";
     }
   });
   return db;
@@ -479,7 +478,6 @@ function ensureBootstrapLogin() {
       firstName,
       lastName,
       phone: "",
-      dn: "",
       rank: 12,
       role: BOOTSTRAP_LOGIN.role,
       baseRole: BOOTSTRAP_LOGIN.role,
@@ -668,7 +666,6 @@ function logFluctuation(db, user, type, actor) {
     type,
     userId: user.id,
     name: `${user.firstName} ${user.lastName}`.trim(),
-    dn: user.dn,
     rank: user.rank,
     actorName: actorName(actor),
     reason: "",
@@ -696,7 +693,6 @@ function logDisciplinary(db, user, type, reason, actor) {
     type,
     userId: user.id,
     name: `${user.firstName} ${user.lastName}`.trim(),
-    dn: user.dn,
     rank: user.rank,
     actorName: actorName(actor),
     reason,
@@ -719,7 +715,7 @@ function activeStrikeCount(entries, userId) {
 
 function setAccountStatus(user, status) {
   user.accountStatus = status;
-  user.locked = ["Gesperrt", "Suspendiert", "Entlassen"].includes(status);
+  user.locked = ["Gesperrt", "Suspendiert", "Entlassen", "Uninvited"].includes(status);
 }
 
 function requireAuth(req, res, next) {
@@ -881,7 +877,6 @@ function normalizeUserInput(body, existingUser) {
   const firstName = String(body.firstName || "").trim();
   const lastName = String(body.lastName || "").trim();
   const phone = String(body.phone || "").trim();
-  const dn = String(body.dn || "").trim();
   const discordId = String(body.discordId || existingUser?.discordId || "").trim();
   const rankMatch = String(body.rank ?? "").match(/\d+/);
   const rank = rankMatch ? Number(rankMatch[0]) : NaN;
@@ -899,8 +894,6 @@ function normalizeUserInput(body, existingUser) {
     return { error: "Name, Nachname, Telefon und Rang sind Pflichtfelder." };
   }
 
-  const dnError = dn ? validateDigits(dn, "DN") : null;
-  if (dnError) return { error: dnError };
   if (discordId) {
     const discordIdError = validateDigits(discordId, "Discord User-ID");
     if (discordIdError) return { error: discordIdError };
@@ -912,7 +905,6 @@ function normalizeUserInput(body, existingUser) {
       firstName,
       lastName,
       phone,
-      dn,
       discordId,
       rank,
       role,
@@ -926,24 +918,13 @@ function normalizeUserInput(body, existingUser) {
 }
 
 function dnConflictMessage(user) {
-  const status = user.terminated ? "Entlassen" : user.accountStatus || (user.locked ? "Gesperrt" : "Aktiv");
-  const dateText = user.terminated && user.termination?.terminatedAt ? `, entlassen am ${new Date(user.termination.terminatedAt).toLocaleString("de-DE")}` : "";
+  const status = user.terminated ? "Uninvited" : user.accountStatus || (user.locked ? "Gesperrt" : "Aktiv");
+  const dateText = user.terminated && user.termination?.terminatedAt ? `, uninvited am ${new Date(user.termination.terminatedAt).toLocaleString("de-DE")}` : "";
   return `${actorName(user)} (${status}${dateText})`;
 }
 
-function resolveDnConflict(db, currentUserId, dn, overwriteDn) {
-  if (!dn) return null;
-  const holder = db.users.find((item) => item.id !== currentUserId && item.dn === dn);
-  if (!holder) return null;
-  if (!holder.terminated) {
-    return { error: `Diese Dienstnummer ist bereits durch ${dnConflictMessage(holder)} vergeben.` };
-  }
-  if (!overwriteDn) {
-    return { error: `Diese Dienstnummer ist bereits durch ${dnConflictMessage(holder)} vergeben. Zum Überschreiben bitte bestätigen.` };
-  }
-  holder.dn = "";
-  holder.updatedAt = nowIso();
-  return { holder };
+function resolveDnConflict() {
+  return null;
 }
 
 function rankText(db, rank) {
@@ -1023,8 +1004,18 @@ app.use(express.static(PUBLIC_DIR, {
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
     }
-    if (filePath.endsWith(".js")) res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    if (filePath.endsWith(".css")) res.setHeader("Content-Type", "text/css; charset=utf-8");
+    if (filePath.endsWith(".js")) {
+      res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+    if (filePath.endsWith(".css")) {
+      res.setHeader("Content-Type", "text/css; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
     if (filePath.includes(`${path.sep}assets${path.sep}`) || /\.(png|jpg|jpeg|webp|gif|svg|ico)$/i.test(filePath)) {
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     }
@@ -1247,17 +1238,16 @@ app.patch("/api/settings/fluctuation/:id", requireAuth, requireItLead, (req, res
   if (!row) return res.status(404).json({ error: "Fluktuationseintrag nicht gefunden." });
   const before = { ...row };
   const type = String(req.body.type || row.type || "").trim();
-  if (!["Eingestellt", "Kündigung", "KÃ¼ndigung"].includes(type)) {
+  if (!["Invited", "Uninvited", "Eingestellt", "Kündigung", "KÃ¼ndigung"].includes(type)) {
     return res.status(400).json({ error: "Ungültiger Typ." });
   }
   const createdAt = req.body.createdAt ? new Date(req.body.createdAt) : new Date(row.createdAt || nowIso());
   if (Number.isNaN(createdAt.getTime())) return res.status(400).json({ error: "Ungültiges Datum." });
 
   row.name = String(req.body.name || row.name || "").trim();
-  row.dn = String(req.body.dn ?? row.dn ?? "").trim();
   row.rank = Number.isInteger(Number(req.body.rank)) ? Number(req.body.rank) : row.rank;
   row.actorName = String(req.body.actorName ?? row.actorName ?? "").trim();
-  row.type = type === "KÃ¼ndigung" ? "Kündigung" : type;
+  row.type = ["Kündigung", "KÃ¼ndigung", "Uninvited"].includes(type) ? "Uninvited" : "Invited";
   row.reason = String(req.body.reason ?? row.reason ?? "").trim();
   row.createdAt = createdAt.toISOString();
   if (!row.name) return res.status(400).json({ error: "Name ist erforderlich." });
@@ -1284,9 +1274,6 @@ app.post("/api/users", requireAuth, requireRole("Direktion"), (req, res) => {
   if (roleCheck.error) return res.status(403).json({ error: roleCheck.error });
   normalized.value.role = roleCheck.role;
 
-  const dnConflict = resolveDnConflict(req.db, "", normalized.value.dn, Boolean(req.body.overwriteDn));
-  if (dnConflict?.error) return res.status(400).json({ error: dnConflict.error });
-
   const createdAt = nowIso();
   const user = {
     id: makeId("user"),
@@ -1307,7 +1294,7 @@ app.post("/api/users", requireAuth, requireRole("Direktion"), (req, res) => {
   syncDirektionMembership(req.db, user, { roleAssigned: user.role === "Direktion" });
 
   req.db.users.push(user);
-  logFluctuation(req.db, user, "Eingestellt", req.user);
+  logFluctuation(req.db, user, "Invited", req.user);
   logAction(req.db, req.user, "Mitglied eingestellt", `${user.firstName} ${user.lastName}`.trim(), { after: publicUser(user) });
   writeDb(req.db);
   syncDiscordRolesForUser(req.db, user, "Mitglied eingestellt");
@@ -1323,9 +1310,6 @@ app.patch("/api/users/:id", requireAuth, requireRole("Direktion"), (req, res) =>
   const roleCheck = protectItRoleChange(req.user, user.role, normalized.value.role);
   if (roleCheck.error) return res.status(403).json({ error: roleCheck.error });
   normalized.value.role = roleCheck.role;
-
-  const dnConflict = resolveDnConflict(req.db, user.id, normalized.value.dn, Boolean(req.body.overwriteDn));
-  if (dnConflict?.error) return res.status(400).json({ error: dnConflict.error });
 
   const before = publicUser(user);
   const previousRole = user.role;
@@ -1472,14 +1456,12 @@ app.post("/api/users/:id/dismiss", requireAuth, requireRole("Direktion"), (req, 
   if (!reason) return res.status(400).json({ error: "Bitte einen Grund angeben." });
   const before = publicUser(user);
   const oldRank = user.rank;
-  const oldDn = user.dn;
   const oldTrainings = { ...(user.trainings || {}) };
-  setAccountStatus(user, "Entlassen");
+  setAccountStatus(user, "Uninvited");
   user.terminated = true;
   user.termination = {
     reason,
     oldRank,
-    oldDn,
     oldTrainings,
     terminatedAt: nowIso(),
     actorName: actorName(req.user)
@@ -1490,12 +1472,12 @@ app.post("/api/users/:id/dismiss", requireAuth, requireRole("Direktion"), (req, 
   req.db.settings.departments.forEach((department) => {
     department.members = department.members.filter((member) => member.userId !== user.id);
   });
-  logFluctuation(req.db, user, "Kündigung", req.user);
+  logFluctuation(req.db, user, "Uninvited", req.user);
   req.db.settings.fluctuation[0].reason = reason;
-  logDisciplinary(req.db, user, "Entlassen", reason, req.user);
-  logAction(req.db, req.user, "Benutzer entlassen", `${user.firstName} ${user.lastName}`.trim(), { reason, before, after: publicUser(user) });
+  logDisciplinary(req.db, user, "Uninvited", reason, req.user);
+  logAction(req.db, req.user, "Benutzer uninvited", `${user.firstName} ${user.lastName}`.trim(), { reason, before, after: publicUser(user) });
   writeDb(req.db);
-  syncDiscordRolesForUser(req.db, user, "Benutzer entlassen");
+  syncDiscordRolesForUser(req.db, user, "Benutzer uninvited");
   res.json({ user: publicUser(user) });
 });
 
@@ -1503,11 +1485,6 @@ app.post("/api/users/:id/rehire", requireAuth, requireRole("Direktion"), (req, r
   const user = req.db.users.find((item) => item.id === req.params.id);
   if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden." });
   if (!user.terminated) return res.status(400).json({ error: "Account ist nicht archiviert." });
-  const dn = String(req.body.dn || user.termination?.oldDn || user.dn || "").trim();
-  const dnError = dn ? validateDigits(dn, "Dienstnummer") : null;
-  if (dnError) return res.status(400).json({ error: dnError });
-  const dnConflict = resolveDnConflict(req.db, user.id, dn, Boolean(req.body.overwriteDn));
-  if (dnConflict?.error) return res.status(400).json({ error: dnConflict.error });
   const rank = Number(req.body.rank ?? user.termination?.oldRank ?? user.rank);
   if (!Number.isInteger(rank) || rank < 0) return res.status(400).json({ error: "Ungültiger Rang." });
   const firstName = String(req.body.firstName || user.firstName || "").trim();
@@ -1532,7 +1509,6 @@ app.post("/api/users/:id/rehire", requireAuth, requireRole("Direktion"), (req, r
   user.role = role;
   user.baseRole = baseRole;
   user.teamler = Boolean(req.body.teamler);
-  user.dn = dn;
   user.rank = rank;
   user.joinedAt = joinedAt;
   const beforeTrainings = { ...(user.trainings || {}) };
@@ -1541,7 +1517,7 @@ app.post("/api/users/:id/rehire", requireAuth, requireRole("Direktion"), (req, r
   user.rehiredAt = nowIso();
   user.updatedAt = nowIso();
   syncDirektionMembership(req.db, user, { roleAssigned: role === "Direktion" });
-  logFluctuation(req.db, user, "Eingestellt", req.user);
+  logFluctuation(req.db, user, "Invited", req.user);
   req.db.settings.fluctuation[0].reason = String(req.body.reason || "Wiedereinstellung").trim() || "Wiedereinstellung";
   logDisciplinary(req.db, user, "Wiedereinstellung", req.db.settings.fluctuation[0].reason, req.user);
   logAction(req.db, req.user, "Benutzer wiedereingestellt", `${user.firstName} ${user.lastName}`.trim(), { before, after: publicUser(user) });
@@ -1569,7 +1545,6 @@ app.post("/api/users/:id/file", requireAuth, requireRole("Direktion"), (req, res
     sanctionType: type === "Aktennotiz" ? "" : sanctionType,
     userId: user.id,
     name: `${user.firstName} ${user.lastName}`.trim(),
-    dn: user.dn,
     rank: user.rank,
     actorName: actorName(req.user),
     reason,

@@ -77,7 +77,7 @@ const state = {
   customPages: [],
   page: localStorage.getItem("lspd_page") || "Dashboard",
   directionTab: localStorage.getItem("lspd_direction_tab") || "overview",
-  profileTab: localStorage.getItem("lspd_profile_tab") || "Account",
+  profileTab: localStorage.getItem("lspd_profile_tab") || "Abmeldung",
   departmentTabs: JSON.parse(localStorage.getItem("lspd_department_tabs") || "{}")
 };
 
@@ -143,7 +143,7 @@ const pageDescriptions = {
   "Meine Lernkontrollen": "Eigene Lernkontrollen und Prüfungsstände einsehen",
   "Abteilungen": "Übersicht aller Abteilungen und Personal",
   "Mitglieder": "Übersicht aller aktiven Mitglieder und Ausbildungen",
-  "Mitgliederfluktation": "Übersicht über Einstellungen und Kündigungen",
+  "Mitgliederfluktation": "Übersicht über Invites und Uninvites",
   "Changelog": "Änderungen und Neuerungen im Dienstblatt einsehen",
   "Postfach": "Interne Nachrichten und Mitteilungen verwalten",
   "Profil": "Eigene Accountdaten, Avatar und Passwort verwalten",
@@ -464,7 +464,6 @@ function describeObjectChanges(before = {}, after = {}) {
     ["firstName", "Vorname"],
     ["lastName", "Nachname"],
     ["phone", "Telefon"],
-    ["dn", "Dienstnummer"],
     ["role", "Rolle"],
     ["title", "Titel"],
     ["priority", "Priorität"],
@@ -492,7 +491,7 @@ function logTone(action) {
   action = cleanText(action);
   if (/hinzugefügt|Uprank/i.test(action)) return "log-good";
   if (/erstellt|gestartet|hinzugefügt|Login|eingestellt/i.test(action)) return "log-good";
-  if (/gelöscht|entlassen|gesperrt|beendet|Logout|Kündigung/i.test(action)) return "log-bad";
+  if (/gelöscht|entlassen|uninvited|gesperrt|beendet|Logout|Kündigung/i.test(action)) return "log-bad";
   if (/geändert|bearbeitet|aktualisiert/i.test(action)) return "log-warn";
   return "";
 }
@@ -935,7 +934,7 @@ function renderDienstblatt() {
 
     <section class="panel">
       <div class="panel-header">
-        <h3><span class="section-icon">▣</span>Dienstblatt-Notizen</h3>
+        <h3><span class="section-icon">▣</span>Notizen</h3>
         ${canAccess("actions", "manageNotes", "Supervisor") ? `<button class="blue-btn" id="addNoteBtn"><span>+</span> Notiz hinzufügen</button>` : ""}
       </div>
       <div class="note-list">
@@ -1517,11 +1516,11 @@ function renderDirectionMembersPanel() {
     <div class="panel department-overview-content">
       <div class="panel-header">
         <h3>Archiv</h3>
-        <span class="muted">${archiveRows.length} entlassene Accounts</span>
+        <span class="muted">${archiveRows.length} uninvited Accounts</span>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Kündigungsgrund</th><th>Alter Rang</th><th>Entlassen am</th><th>Aktionen</th></tr></thead>
+          <thead><tr><th>Name</th><th>Grund</th><th>Alter Rang</th><th>Uninvited am</th><th>Aktionen</th></tr></thead>
           <tbody>
             ${archiveRows.map((user) => {
               const info = terminationInfo(user);
@@ -1538,7 +1537,7 @@ function renderDirectionMembersPanel() {
                   </div>
                 </td>
               </tr>`;
-            }).join("") || `<tr><td colspan="5" class="muted">Noch keine entlassenen Personen im Archiv.</td></tr>`}
+            }).join("") || `<tr><td colspan="5" class="muted">Noch keine uninvited Personen im Archiv.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1547,18 +1546,17 @@ function renderDirectionMembersPanel() {
 }
 
 function terminationInfo(user) {
-  const fallback = (state.settings.fluctuation || []).find((row) => row.userId === user.id && row.type === "Kündigung") || {};
+  const fallback = (state.settings.fluctuation || []).find((row) => row.userId === user.id && isDismissedFluctuation(row)) || {};
   return {
     reason: user.termination?.reason || fallback.reason || "",
     oldRank: user.termination?.oldRank ?? fallback.rank ?? user.rank,
-    oldDn: user.termination?.oldDn ?? fallback.dn ?? user.dn,
     oldTrainings: user.termination?.oldTrainings || user.trainings || {},
     terminatedAt: user.termination?.terminatedAt || fallback.createdAt || user.updatedAt
   };
 }
 
 function userAccountStatus(user) {
-  return user?.accountStatus || (user?.terminated ? "Entlassen" : user?.locked ? "Gesperrt" : "Aktiv");
+  return user?.accountStatus || (user?.terminated ? "Uninvited" : user?.locked ? "Gesperrt" : "Aktiv");
 }
 
 function userStatusRowClass(user) {
@@ -1571,27 +1569,11 @@ function userStatusRowClass(user) {
 function renderAccountStatus(user) {
   const status = userAccountStatus(user);
   const className = status === "Aktiv" ? "active" : status === "Suspendiert" ? "suspended" : "locked";
-  return `<span class="account-status-chip ${className}">${escapeHtml(status)}</span>`;
+  return `<span class="account-status-chip ${className}">${escapeHtml(status === "Entlassen" ? "Uninvited" : status)}</span>`;
 }
 
-function dnConflictFor(dn, currentUserId = "") {
-  const value = String(dn || "").trim();
-  if (!value) return null;
-  return [...(state.users || []), ...(state.archivedUsers || [])].find((item) => item.id !== currentUserId && String(item.dn || "") === value);
-}
-
-function renderDnConflictBox(holder, dn) {
-  if (!holder) return "";
-  const info = terminationInfo(holder);
-  const status = userAccountStatus(holder);
-  return `
-    <div class="info-box full dn-conflict-box">
-      <strong>Dienstnummer bereits vergeben</strong>
-      <p>DN ${escapeHtml(dn)} ist vergeben an ${escapeHtml(fullName(holder))} - Status: ${escapeHtml(status)}${holder.terminated ? ` - Entlassen am ${formatDateTime(info.terminatedAt)}` : ""}</p>
-      ${holder.terminated ? `<label class="checkbox-line">Dienstnummer überschreiben und beim archivierten Account entfernen<input type="checkbox" id="overwriteDn"></label>` : `<p class="form-error">Aktive Mitglieder können nicht überschrieben werden.</p>`}
-    </div>
-  `;
-}
+function dnConflictFor() { return null; }
+function renderDnConflictBox() { return ""; }
 
 function renderTrainingSummary(trainingsMap = {}) {
   const done = trainings.filter((training) => trainingsMap?.[training]);
@@ -1689,20 +1671,19 @@ function renderDirectionFluctuationPanel() {
       <div class="panel-header"><h3>Mitgliederfluktation</h3><input id="directionFluctuationSearch" class="compact-input" placeholder="Suchen"></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>DN</th><th>Rang</th><th>Bearbeitet von</th><th>Typ</th><th>Grund</th><th>Datum</th>${canManage ? "<th>Aktionen</th>" : ""}</tr></thead>
+          <thead><tr><th>Name</th><th>Rang</th><th>Bearbeitet von</th><th>Typ</th><th>Grund</th><th>Datum</th>${canManage ? "<th>Aktionen</th>" : ""}</tr></thead>
           <tbody>
             ${rows.map((row) => `
               <tr class="filterable-row">
                 <td>${escapeHtml(row.name)}</td>
-                <td>${escapeHtml(row.dn || "-")}</td>
                 <td>${escapeHtml(rankLabel(row.rank))}</td>
                 <td>${escapeHtml(row.actorName || "-")}</td>
-                <td><span class="fluctuation-chip ${fluctuationTypeClass(row)}">${escapeHtml(row.type)}</span></td>
+                <td><span class="fluctuation-chip ${fluctuationTypeClass(row)}">${escapeHtml(fluctuationTypeLabel(row))}</span></td>
                 <td>${escapeHtml(row.reason || "-")}</td>
                 <td>${formatDateTime(row.createdAt)}</td>
                 ${canManage ? `<td><span class="button-row"><button class="mini-icon edit-fluctuation" data-id="${escapeHtml(row.id)}" title="Bearbeiten">${actionIcon("edit")}</button><button class="mini-icon danger delete-fluctuation" data-id="${escapeHtml(row.id)}" title="Löschen">${actionIcon("delete")}</button></span></td>` : ""}
               </tr>
-            `).join("") || `<tr><td colspan="${canManage ? 8 : 7}" class="muted">Noch keine Einträge.</td></tr>`}
+            `).join("") || `<tr><td colspan="${canManage ? 7 : 6}" class="muted">Noch keine Einträge.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1711,11 +1692,15 @@ function renderDirectionFluctuationPanel() {
 }
 
 function isDismissedFluctuation(row) {
-  return row?.type === "Kündigung" || row?.type === "KÃ¼ndigung";
+  return ["Uninvited", "Kündigung", "KÃ¼ndigung"].includes(row?.type);
 }
 
 function fluctuationTypeClass(row) {
-  return row?.type === "Eingestellt" ? "hired" : "dismissed";
+  return ["Invited", "Eingestellt"].includes(row?.type) ? "hired" : "dismissed";
+}
+
+function fluctuationTypeLabel(row) {
+  return ["Invited", "Eingestellt"].includes(row?.type) ? "Invited" : "Uninvited";
 }
 
 function fluctuationById(id) {
@@ -1742,15 +1727,14 @@ function bindFluctuationActions() {
 
 function openFluctuationModal(row) {
   if (!row || !canManageFluctuation()) return;
-  const selectedType = isDismissedFluctuation(row) ? "Kündigung" : "Eingestellt";
+  const selectedType = isDismissedFluctuation(row) ? "Uninvited" : "Invited";
   openModal(`
     <h3>Fluktuationseintrag bearbeiten</h3>
     <form id="fluctuationForm" class="modal-form">
       <label>Name<input id="fluctuationName" required value="${escapeHtml(row.name || "")}"></label>
-      <label>DN<input id="fluctuationDn" value="${escapeHtml(row.dn || "")}"></label>
       <label>Rang<select id="fluctuationRank">${state.ranks.map((rank) => `<option value="${rank.level}" ${Number(row.rank) === Number(rank.level) ? "selected" : ""}>${escapeHtml(rankOptionLabel(rank))}</option>`).join("")}</select></label>
       <label>Bearbeitet von<input id="fluctuationActor" value="${escapeHtml(row.actorName || "")}"></label>
-      <label>Typ<select id="fluctuationType"><option ${selectedType === "Eingestellt" ? "selected" : ""}>Eingestellt</option><option ${selectedType === "Kündigung" ? "selected" : ""}>Kündigung</option></select></label>
+      <label>Typ<select id="fluctuationType"><option ${selectedType === "Invited" ? "selected" : ""}>Invited</option><option ${selectedType === "Uninvited" ? "selected" : ""}>Uninvited</option></select></label>
       <label>Grund<textarea id="fluctuationReason" rows="4">${escapeHtml(row.reason || "")}</textarea></label>
       <label>Datum<input id="fluctuationCreatedAt" type="datetime-local" value="${datetimeLocalValue(row.createdAt)}"></label>
       <div class="modal-actions">
@@ -1765,7 +1749,6 @@ function openFluctuationModal(row) {
         method: "PATCH",
         body: JSON.stringify({
           name: $("#fluctuationName").value,
-          dn: $("#fluctuationDn").value,
           rank: Number($("#fluctuationRank").value),
           actorName: $("#fluctuationActor").value,
           type: $("#fluctuationType").value,
@@ -1918,7 +1901,7 @@ function renderDirectionUpranksPanel() {
     .map(evaluateUprank);
   const visibleRows = allRows
     .filter((row) => {
-      const searchText = `${fullName(row.user)} ${row.user.dn || ""} ${rankLabel(row.user.rank)} ${rankLabel(row.targetRank)} ${row.missingTrainings.join(" ")}`.toLowerCase();
+      const searchText = `${fullName(row.user)} ${rankLabel(row.user.rank)} ${rankLabel(row.targetRank)} ${row.missingTrainings.join(" ")}`.toLowerCase();
       if (searchTerm) return searchText.includes(searchTerm);
       return row.ready || row.needsSpecial;
     })
@@ -1953,7 +1936,7 @@ function currentUprankRows(searchTerm = "") {
     .map(evaluateUprank);
   return allRows
     .filter((row) => {
-      const searchText = `${fullName(row.user)} ${row.user.dn || ""} ${rankLabel(row.user.rank)} ${rankLabel(row.targetRank)} ${row.missingTrainings.join(" ")}`.toLowerCase();
+      const searchText = `${fullName(row.user)} ${rankLabel(row.user.rank)} ${rankLabel(row.targetRank)} ${row.missingTrainings.join(" ")}`.toLowerCase();
       if (searchTerm) return searchText.includes(searchTerm);
       return row.ready || row.needsSpecial;
     })
@@ -2092,12 +2075,12 @@ function renderFluctuation() {
   const grouped = rangeRows.reduce((acc, row) => {
     const key = new Date(row.createdAt).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
     acc[key] ||= { hired: 0, dismissed: 0 };
-    if (row.type === "Eingestellt") acc[key].hired += 1;
+    if (["Invited", "Eingestellt"].includes(row.type)) acc[key].hired += 1;
     if (isDismissedFluctuation(row)) acc[key].dismissed += 1;
     return acc;
   }, {});
   const summary = Object.entries(grouped).length ? Object.entries(grouped) : [[monthLabel, { hired: 0, dismissed: 0 }]];
-  const totalHired = rangeRows.filter((row) => row.type === "Eingestellt").length;
+  const totalHired = rangeRows.filter((row) => ["Invited", "Eingestellt"].includes(row.type)).length;
   const totalDismissed = rangeRows.filter(isDismissedFluctuation).length;
   content.innerHTML = `
     <section class="panel fluctuation-summary">
@@ -2108,8 +2091,8 @@ function renderFluctuation() {
         </select>
       </div>
       <div class="fluctuation-summary-grid">
-        <div class="fluctuation-total summary-green"><span>Einstellungen</span><strong>${totalHired}</strong></div>
-        <div class="fluctuation-total summary-red"><span>Kündigungen</span><strong>${totalDismissed}</strong></div>
+        <div class="fluctuation-total summary-green"><span>Invited</span><strong>${totalHired}</strong></div>
+        <div class="fluctuation-total summary-red"><span>Uninvited</span><strong>${totalDismissed}</strong></div>
         <div class="fluctuation-summary-list">
           ${summary.map(([label, item]) => `
             <div class="fluctuation-summary-row">
@@ -2130,7 +2113,7 @@ function renderFluctuation() {
             ${rangeRows.length ? rangeRows.map((row) => `
               <tr class="filterable-row">
                 <td>${escapeHtml(row.name)}</td>
-                <td><span class="fluctuation-chip ${fluctuationTypeClass(row)}">${escapeHtml(row.type)}</span></td>
+                <td><span class="fluctuation-chip ${fluctuationTypeClass(row)}">${escapeHtml(fluctuationTypeLabel(row))}</span></td>
                 <td>${escapeHtml(row.reason || "-")}</td>
                 <td>${formatDateTime(row.createdAt)}</td>
               </tr>
@@ -2278,16 +2261,16 @@ function departmentsForOverview() {
 
 function renderPermissionPickList(type, items, selected = []) {
   const placeholders = {
-    role: "z.B. User, Supervisor, Direktion",
-    department: "z.B. SWAT, Training, Metro",
+    role: "z.B. User, Supervisor, Leader",
+    department: "z.B. Logistik",
     position: "z.B. Leitung, Stv. Leitung, Anwärter",
     rank: "z.B. 0, 5, Sergeant, Director",
-    user: "z.B. Name, Dienstnummer, Alexa"
+    user: "z.B. Name oder Rolle"
   };
   return `
     <div class="permission-picker" data-perm-picker="${type}">
       <input class="permission-search" placeholder="${escapeHtml(placeholders[type] || "Suchen und hinzufügen")}">
-      <small class="permission-hint">${escapeHtml(type === "user" ? "Nach Name oder DN suchen und dann aktivieren." : "Suchen, Vorschlag auswählen und per Schalter aktivieren.")}</small>
+      <small class="permission-hint">${escapeHtml(type === "user" ? "Nach Name suchen und dann aktivieren." : "Suchen, Vorschlag auswählen und per Schalter aktivieren.")}</small>
       <div class="permission-checks">
         ${items.map((item) => {
           const isSelected = selected.includes(item.value);
@@ -2313,10 +2296,10 @@ function permissionSummary(area, key) {
 function renderPermissionEditor(area, key, label, description = "") {
   const rule = permissionRule(area, key);
   const rankItems = [...state.ranks].sort((a, b) => Number(a.value) - Number(b.value)).map((rank) => ({ value: String(rank.value), label: rankOptionLabel(rank) }));
-  const roleItems = state.roles.map((role) => ({ value: role, label: role }));
-  const userItems = state.users.map((user) => ({ value: user.id, label: `${fullName(user)} - DN ${user.dn || "-"}` }));
+  const roleItems = state.roles.map((role) => ({ value: role, label: appLabel(role) }));
+  const userItems = state.users.map((user) => ({ value: user.id, label: fullName(user) }));
   const departmentItems = state.departments.filter((department) => department.id !== "direktion").map((department) => ({ value: department.id, label: department.name }));
-  const positionItems = state.departments.flatMap((department) => departmentPositionsFor(department).map((position) => ({ value: `${department.id}:${position}`, label: `${department.name} - ${position}` })));
+  const positionItems = state.departments.flatMap((department) => departmentPositionsFor(department).map((position) => ({ value: `${department.id}:${position}`, label: `${department.name} - ${appLabel(position)}` })));
   return `
     <article class="permission-row" data-permission-area="${area}" data-permission-key="${escapeHtml(key)}">
       <div class="permission-row-head">
@@ -2475,7 +2458,7 @@ function renderDiscordSyncPanel() {
   return `
     <div class="panel it-section-card it-discord-card">
       <div class="it-section-title">
-        <div><h3>Discord Sync</h3><p class="muted">Rang- und Abteilungsrollen vorbereiten, damit Discord-Rollen passend zum Dienstblatt vergeben werden koennen.</p></div>
+        <div><h3>Discord Sync</h3><p class="muted">Rang- und Abteilungsrollen vorbereiten, damit Discord-Rollen passend zum MG13 Dashboard vergeben werden koennen.</p></div>
         <div class="button-row">
           <button class="ghost-btn" id="linkOwnDiscord" type="button">Meinen Discord verknüpfen</button>
           <button class="ghost-btn" id="importDiscordRoles" type="button">Server-Rollen importieren</button>
@@ -2497,7 +2480,7 @@ function renderDiscordSyncPanel() {
           <p class="discord-import-status">${importedRoles.length ? `${importedRoles.length} Server-Rollen importiert.` : "Noch keine Server-Rollen importiert."}</p>
         </div>
         <div class="discord-sync-section">
-          <div><strong>Ränge</strong><small>Jeder Dienstblatt-Rang kann mehrere Discord-Rollen bekommen.</small></div>
+          <div><strong>Ränge</strong><small>Jeder MG13-Rang kann mehrere Discord-Rollen bekommen.</small></div>
           <div class="discord-role-grid">
             ${sortedRanks.map((rank) => `
               <div class="discord-role-row">
@@ -2519,7 +2502,7 @@ function renderDiscordSyncPanel() {
                     "__member"
                   ].map((position) => {
                     const key = `${department.id}:${position}`;
-                    const label = position === "__member" ? `${department.name} Mitglieder` : `${department.name} ${position} Leader`;
+                    const label = position === "__member" ? `${department.name} Mitglieder` : `${department.name} ${appLabel(position)} Leader`;
                     return `
                       <div class="discord-role-row">
                         <span>${escapeHtml(label)}</span>
@@ -3123,9 +3106,9 @@ function pagePermissionActions(page) {
     ];
   }
   const map = {
-    Dienstblatt: [["editDefcon", "DEFCON anpassen", "Zahnrad und DEFCON-Stufe."], ["manageNotes", "Dienstblatt-Notizen", "Notizen schreiben/bearbeiten/löschen."], ["stopAllDuty", "Alle austragen", "Alle Dienste beenden."]],
+    Dashboard: [["editDefcon", "DEFCON anpassen", "Zahnrad und DEFCON-Stufe."], ["manageNotes", "Dashboard-Notizen", "Notizen schreiben/bearbeiten/löschen."], ["stopAllDuty", "Alle austragen", "Alle Dienste beenden."]],
     Informationen: [["manageInformation", "Informationen bearbeiten", "Weiterleitungen, Sondergenehmigungen und Fraktionen."]],
-    Direktion: [["manageMembers", "Mitgliederverwaltung", "Accounts und Archiv verwalten."], ["manageDutyHours", "Dienstzeiten verwalten", "Stunden hinzufügen/entfernen."], ["viewLogs", "Logs sehen", "Logs im Direktionsbereich."]]
+    Direktion: [["manageMembers", "Mitgliederverwaltung", "Accounts und Archiv verwalten."], ["viewLogs", "Logs sehen", "Logs im Leaderbereich."]]
   };
   return map[page] || [];
 }
@@ -3146,8 +3129,8 @@ function renderDepartmentPositionManager(department) {
       <div class="department-position-list" id="departmentPositionList">
         ${departmentPositionsFor(department).map((position) => `
           <label class="department-position-row">
-            <span>${escapeHtml(position)}</span>
-            <input data-dept-position-old="${escapeHtml(position)}" value="${escapeHtml(position)}" ${position === "Direktion" ? "readonly" : ""}>
+            <span>${escapeHtml(appLabel(position))}</span>
+            <input data-dept-position-old="${escapeHtml(position)}" value="${escapeHtml(appLabel(position))}" ${position === "Direktion" ? "readonly" : ""}>
             <select data-dept-position-color class="position-color-select">
               ${colorOptions.map(([value, label]) => `<option value="${value}" ${positionColorFor(department, position) === value ? "selected" : ""}>${label}</option>`).join("")}
             </select>
@@ -3164,12 +3147,15 @@ function renderDepartmentPositionManager(department) {
   `;
 }
 function collectDepartmentPositions(modal) {
-  return Array.from(modal.querySelectorAll("[data-dept-position-old]")).map((input) => ({
-    old: input.dataset.deptPositionOld,
-    label: input.value.trim(),
-    leader: Boolean(input.closest(".department-position-row")?.querySelector("[data-dept-position-leader]")?.checked),
-    color: input.closest(".department-position-row")?.querySelector("[data-dept-position-color]")?.value || defaultPositionColor(input.value.trim())
-  })).filter((item) => item.label);
+  return Array.from(modal.querySelectorAll("[data-dept-position-old]")).map((input) => {
+    const label = input.dataset.deptPositionOld === "Direktion" && input.value.trim() === "Leader" ? "Direktion" : input.value.trim();
+    return {
+      old: input.dataset.deptPositionOld,
+      label,
+      leader: Boolean(input.closest(".department-position-row")?.querySelector("[data-dept-position-leader]")?.checked),
+      color: input.closest(".department-position-row")?.querySelector("[data-dept-position-color]")?.value || defaultPositionColor(label)
+    };
+  }).filter((item) => item.label);
 }
 
 function openPagePermissionModal(page) {
@@ -3177,7 +3163,7 @@ function openPagePermissionModal(page) {
   const department = isDepartmentPage(page) ? departmentByPage(page) : null;
   openModal(`
     <h3>Rechte: ${escapeHtml(navLabel(page))}</h3>
-    <p class="muted">Hier stellst du Ansehen und wichtige interne Funktionen für dieses Blatt ein. IT und Direktion bleiben berechtigt, nur der IT-Reiter bleibt ausschließlich IT.</p>
+    <p class="muted">Hier stellst du Ansehen und wichtige interne Funktionen für dieses Blatt ein. IT und Leader bleiben berechtigt, nur der IT-Reiter bleibt ausschließlich IT.</p>
     <div class="permission-list modal-permission-list">
       ${department ? renderDepartmentPositionManager(department) : ""}
       ${renderPermissionEditor("pages", page, "Blatt ansehen", pageDescription(page))}
@@ -3338,7 +3324,7 @@ function renderDepartmentCard(department) {
         <tbody>
           ${visibleMembers.length ? visibleMembers.map((member) => `
             <tr>
-              <td><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(member.position)}</span></td>
+              <td><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(appLabel(member.position))}</span></td>
               <td>${escapeHtml(member.user.rank)}</td>
               <td class="dept-card-name"><span class="online-dot ${member.isOnDuty ? "online" : ""}"></span><span>${escapeHtml(fullName(member.user))}</span></td>
             </tr>
@@ -3684,7 +3670,7 @@ function examCurrentQuestion(exam) {
 }
 
 function examUserOptionLabel(user) {
-  return `${fullName(user)} - DN ${user.dn || "-"} - ${rankLabel(user.rank)}`;
+  return `${fullName(user)} - ${rankLabel(user.rank)}`;
 }
 
 function renderExamUserPicker(id, listId, users, placeholder) {
@@ -3828,7 +3814,7 @@ function legacyRenderEstExamPanel(department) {
         </div>
         <div class="exam-start-grid compact-exam-start est-create-row">
           <label>Prüfling ohne EST
-            <select id="estCandidateSelect"><option value="">Prüfling auswählen</option>${candidates.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn || "-")}</option>`).join("")}</select>
+            <select id="estCandidateSelect"><option value="">Prüfling auswählen</option>${candidates.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))}</option>`).join("")}</select>
           </label>
           <label>2. Prüfer optional
             <select id="estSecondExaminer"><option value=""></option>${state.users.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))}</option>`).join("")}</select>
@@ -3881,7 +3867,7 @@ function legacyRenderModuleExamPanel(department) {
         <div class="panel-header"><div><h3>Ausbildungen</h3><p class="muted">Vorlage für spätere Modulprüfungen aus offenen Ausbildungen.</p></div></div>
         <div class="exam-start-grid">
           <label>Mitglied
-            <select>${state.users.map((user) => `<option>${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn || "-")}</option>`).join("")}</select>
+            <select>${state.users.map((user) => `<option>${escapeHtml(fullName(user))}</option>`).join("")}</select>
           </label>
           <label>Module auswählen
             <select multiple>${moduleOptions.map((training) => `<option>${escapeHtml(training)}</option>`).join("")}</select>
@@ -3943,7 +3929,7 @@ function legacyActiveRenderEstExamPanel(department) {
         </div>
         <div class="exam-start-grid">
           <label>Prüfling ohne EST
-            <select id="estCandidateSelect">${candidates.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn || "-")}</option>`).join("")}</select>
+            <select id="estCandidateSelect">${candidates.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))}</option>`).join("")}</select>
           </label>
           <button class="blue-btn" id="startEstExam" type="button" ${candidates.length ? "" : "disabled"}>EST Prüfung erstellen</button>
         </div>
@@ -3977,7 +3963,7 @@ function legacyActiveRenderModuleExamPanel(department) {
         <div class="panel-header"><div><h3>Ausbildungen</h3><p class="muted">Modulprüfung erstellen und in einem eigenen Fenster durchführen.</p></div></div>
         <div class="exam-start-grid">
           <label>Mitglied
-            <select id="moduleCandidateSelect"><option value="">Mitglied auswählen</option>${state.users.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - DN ${escapeHtml(user.dn || "-")}</option>`).join("")}</select>
+            <select id="moduleCandidateSelect"><option value="">Mitglied auswählen</option>${state.users.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))}</option>`).join("")}</select>
           </label>
           <label>2. Prüfer optional
             <select id="moduleSecondExaminer"><option value=""></option>${state.users.map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))}</option>`).join("")}</select>
@@ -7514,7 +7500,7 @@ function renderLeadershipMemberCard(department, member, selectedRange = "Gesamt"
         <button class="blue-btn dept-member-note-add" data-user-id="${escapeHtml(member.userId)}">+ Interne Notiz</button>
       </div>
       <div class="leadership-facts">
-        <span><b>Position</b>${escapeHtml(member.position)}</span>
+        <span><b>Position</b>${escapeHtml(appLabel(member.position))}</span>
         <span><b>In Abteilung seit</b>${formatDate(member.joinedAt)}</span>
         <span><b>Aktuelle Rolle seit</b>${formatDate(member.positionSince || member.joinedAt)}</span>
       </div>
@@ -7537,7 +7523,7 @@ function renderDepartmentMemberTable(department) {
           ${department.members.map((member) => `
             <tr>
               <td><span class="member-name truncate"><span class="online-dot ${member.isOnDuty ? "online" : ""}"></span>${avatarMarkup(member.user, "sm")}<span>${escapeHtml(fullName(member.user))}</span></span></td>
-              <td><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(member.position)}</span></td>
+              <td><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(appLabel(member.position))}</span></td>
               <td><span class="department-rank-label">${escapeHtml(rankLabel(member.user.rank))}</span></td>
             </tr>
           `).join("")}
@@ -7600,8 +7586,8 @@ function renderProfileTrainingPanel(user) {
 
 function renderProfile() {
   const user = state.currentUser;
-  const profileTabs = ["Account", "Discord"];
-  if (!profileTabs.includes(state.profileTab)) state.profileTab = "Account";
+  const profileTabs = ["Abmeldung", "Discord"];
+  if (!profileTabs.includes(state.profileTab)) state.profileTab = "Abmeldung";
   content.innerHTML = `
     <section class="panel profile-hero">
       ${avatarMarkup(user, "xl")}
@@ -7631,10 +7617,11 @@ function renderProfile() {
         <p class="muted">${user.discordId ? `Verknüpft mit Discord ID ${escapeHtml(user.discordId)}${user.discordName ? ` (${escapeHtml(user.discordName)})` : ""}.` : "Noch kein Discord Account verknüpft. Nach der Verknüpfung kann Discord Login und Rollen-Sync genutzt werden."}</p>
         <button class="discord-login-btn" id="profileDiscordLinkSecondary" type="button">${user.discordId ? "Discord Verbindung erneuern" : "Discord jetzt verknüpfen"}</button>
       ` : `
-        <div class="panel-header"><h3>Account</h3></div>
-        <div class="info-box"><strong>Name</strong><p>${escapeHtml(fullName(user))}</p></div>
-        <div class="info-box"><strong>Rang</strong><p>${escapeHtml(rankLabel(user.rank))}</p></div>
-        <div class="info-box"><strong>Telefon</strong><p>${escapeHtml(user.phone || "-")}</p></div>
+        <div class="panel-header"><h3>Abmeldung</h3></div>
+        <div class="template-page">
+          <h3>Abmeldung</h3>
+          <p class="muted">Hier kommt später die Abmeldungsfunktion für MG13 rein.</p>
+        </div>
       `}
     </section>
   `;
@@ -8030,7 +8017,7 @@ function openSeizureModal(item = null) {
   const witnessOptions = state.users
     .filter((user) => !user.terminated)
     .sort((a, b) => fullName(a).localeCompare(fullName(b), "de"))
-    .map((user) => `<option value="${escapeHtml(fullName(user))}" ${item?.witness === fullName(user) ? "selected" : ""}>${escapeHtml(fullName(user))} (${escapeHtml(user.dn || "-")})</option>`)
+    .map((user) => `<option value="${escapeHtml(fullName(user))}" ${item?.witness === fullName(user) ? "selected" : ""}>${escapeHtml(fullName(user))}</option>`)
     .join("");
   openModal(`
     <div class="seizure-modal-head"><span>${iconSvg(isEdit ? "Settings" : "Plus")}</span><div><h3>${isEdit ? "Beschlagnahmung bearbeiten" : "Neue Beschlagnahmung"}</h3><p class="muted">Pflichtfelder ausfüllen, optionale Angaben nur bei Bedarf ergänzen.</p></div></div>
@@ -8672,7 +8659,6 @@ function openUserModal(user) {
       }
       delete body.isIT;
       delete body.isITLead;
-      body.dn = user?.dn || "";
       body.departments = Array.from(modal.querySelectorAll("[data-user-department]:checked")).map((input) => input.value);
       body.rank = Number(body.rank);
       body.teamler = form.get("teamler") === "on";
@@ -8886,7 +8872,6 @@ function openRehireUserModal(user) {
         await api(`/api/users/${user.id}/rehire`, {
           method: "POST",
           body: JSON.stringify({
-            dn: user.termination?.oldDn || user.dn || "",
             rank: Number(form.get("rank")),
             firstName: form.get("firstName"),
             lastName: form.get("lastName"),
@@ -8925,7 +8910,7 @@ function openUserActionsModal(user) {
       <button class="blue-btn action-menu-btn" id="actionOpenFile">Akte öffnen</button>
       <button class="orange-btn action-menu-btn" id="actionToggleLock">${user.locked ? "Entsperren" : "Sperren"}</button>
       <button class="orange-btn action-menu-btn" id="actionSuspendUser">Suspendieren</button>
-      <button class="red-btn action-menu-btn" id="actionDismissUser">Entlassen</button>
+      <button class="red-btn action-menu-btn" id="actionDismissUser">Uninvite</button>
       <button class="red-btn action-menu-btn" id="actionDeleteUser">Löschen</button>
     </div>
     <div class="modal-actions"><button class="ghost-btn" data-close>Schließen</button></div>
@@ -8953,7 +8938,7 @@ function openSuspendUserModal(user) {
 }
 
 function openDismissUserModal(user) {
-  openReasonUserModal(user, "Entlassen", `/api/users/${user.id}/dismiss`, "POST");
+  openReasonUserModal(user, "Uninvite", `/api/users/${user.id}/dismiss`, "POST");
 }
 
 function openPersonnelFileModal(user) {
@@ -8975,7 +8960,6 @@ function openPersonnelFileModal(user) {
       <div class="info-box"><strong>Status</strong><p>${renderAccountStatus(user)}</p></div>
       <div class="info-box"><strong>Aktive Strikes</strong><p><span class="strike-counter ${activeStrikes >= 3 ? "danger" : activeStrikes >= 2 ? "warn" : ""}">${activeStrikes}/3</span></p></div>
       <div class="info-box"><strong>Offene Geldstrafen</strong><p><span class="file-pill open">${openFines.length} / ${openFineAmount.toLocaleString("de-DE")} $</span></p></div>
-      <div class="info-box"><strong>DN</strong><p>${escapeHtml(user.dn || "-")}</p></div>
       <div class="info-box"><strong>Rang</strong><p>${escapeHtml(rankLabel(user.rank))}</p></div>
     </div>
     <div class="button-row file-action-row">
@@ -9030,7 +9014,7 @@ function openPersonnelFileModal(user) {
 
 function renderFileEntry(entry, activeStrike = false, expired = false) {
   const sanctionType = entry.sanctionType || (entry.type === "Strike" ? "Strike" : "");
-  const className = entry.type === "Aktennotiz" ? "note" : sanctionType === "Geldstrafe" ? "fine" : sanctionType === "Strike" ? "strike" : ["Entlassen", "Sperre", "Suspendierung"].includes(entry.type) ? "danger" : "history";
+  const className = entry.type === "Aktennotiz" ? "note" : sanctionType === "Geldstrafe" ? "fine" : sanctionType === "Strike" ? "strike" : ["Entlassen", "Uninvited", "Sperre", "Suspendierung"].includes(entry.type) ? "danger" : "history";
   const archived = (entry.type === "Sanktion" || entry.type === "Strike") && (entry.archivedAt || expired);
   const title = entry.type === "Sanktion" || entry.type === "Strike" ? `${sanctionType}${entry.title && entry.title !== sanctionType ? ` - ${entry.title}` : ""}` : entry.type;
   return `
@@ -9192,7 +9176,7 @@ function openReasonUserModal(user, title, path, method, extra = {}) {
     <p id="modalError" class="form-error"></p>
     <div class="modal-actions">
       <button class="ghost-btn" data-close>Abbrechen</button>
-      <button class="${title === "Entlassen" ? "red-btn" : "orange-btn"}" id="confirmReasonAction">${escapeHtml(title)}</button>
+      <button class="${title === "Uninvite" ? "red-btn" : "orange-btn"}" id="confirmReasonAction">${escapeHtml(title)}</button>
     </div>
   `, (modal) => {
     modal.querySelector("#confirmReasonAction").addEventListener("click", async () => {
@@ -9293,7 +9277,7 @@ function openDepartmentInfoModal(department) {
       <div class="info-box"><strong>Bewerbungsstatus</strong><span class="application-pill ${department.applicationStatus === "Offen" ? "open" : "closed"}">${escapeHtml(department.applicationStatus)}</span></div>
       <div class="info-box"><strong>Voraussetzungen</strong><p><span class="requirements-pill">${escapeHtml(department.requirements)}</span></p></div>
       <div class="info-box full personnel-box"><strong>${iconSvg("Mitglieder")} Personal (${department.members.length})</strong>
-        <div class="personnel-list">${department.members.map((member) => `<div class="personnel-row"><span><b>${escapeHtml(fullName(member.user))}</b><small>${escapeHtml(rankLabel(member.user.rank))}</small></span><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(member.position)}</span></div>`).join("") || "<p>Keine Mitglieder.</p>"}</div>
+        <div class="personnel-list">${department.members.map((member) => `<div class="personnel-row"><span><b>${escapeHtml(fullName(member.user))}</b><small>${escapeHtml(rankLabel(member.user.rank))}</small></span><span class="position-chip ${positionClass(member.position, department)}">${escapeHtml(appLabel(member.position))}</span></div>`).join("") || "<p>Keine Mitglieder.</p>"}</div>
       </div>
     </div>
     <div class="modal-actions">
@@ -9490,7 +9474,7 @@ function openDepartmentMemberModal(department, member = null) {
     search?.addEventListener("input", () => {
       const term = search.value.toLowerCase();
       select.innerHTML = availableUsers
-        .filter((user) => fullName(user).toLowerCase().includes(term) || String(user.dn).includes(term))
+        .filter((user) => fullName(user).toLowerCase().includes(term) || rankLabel(user.rank).toLowerCase().includes(term))
         .map((user) => `<option value="${user.id}">${escapeHtml(fullName(user))} - ${escapeHtml(rankLabel(user.rank))}</option>`)
         .join("");
     });
@@ -9517,7 +9501,7 @@ function openDepartmentManageModal(department) {
     <div class="manage-member-list">
       ${department.members.length ? department.members.map((member) => `
         <div class="manage-member-row">
-          <span><strong>${escapeHtml(fullName(member.user))}</strong><small>${escapeHtml(member.position)} · ${escapeHtml(rankLabel(member.user.rank))}</small></span>
+          <span><strong>${escapeHtml(fullName(member.user))}</strong><small>${escapeHtml(appLabel(member.position))} · ${escapeHtml(rankLabel(member.user.rank))}</small></span>
           <span class="button-row">
             <button class="mini-icon edit-dept-member" data-department-id="${department.id}" data-user-id="${member.userId}" title="Position bearbeiten">${actionIcon("edit")}</button>
             <button class="mini-icon danger remove-dept-member" data-department-id="${department.id}" data-user-id="${member.userId}" title="Entfernen">${actionIcon("delete")}</button>
@@ -9724,14 +9708,58 @@ function pageDescription(page) {
   return pageDescriptions[page] || "Diese Seite kann spaeter weiter ausgebaut werden";
 }
 
+function currentUserDepartmentText() {
+  const user = state.currentUser;
+  if (!user) return "";
+  const memberships = (state.departments || [])
+    .flatMap((department) => (department.members || [])
+      .filter((member) => member.userId === user.id)
+      .map((member) => `${department.name}${member.position && member.position !== "Mitglied" ? ` · ${appLabel(member.position)}` : ""}`));
+  return memberships.length ? memberships.join(" / ") : appLabel(user.baseRole || user.role || "");
+}
+
+function renderSidebarProfile() {
+  const user = state.currentUser;
+  if (!user) {
+    return `<img class="gang-sidebar-logo" src="/assets/mg13.png" alt="MG13"><div class="profile-copy"><strong>MG13</strong><span>Login</span></div>`;
+  }
+  return `
+    ${avatarMarkup(user, "sm")}
+    <div class="profile-copy">
+      <strong>${escapeHtml(fullName(user))}</strong>
+      <span>${escapeHtml(rankLabel(user.rank))}</span>
+      <small>${escapeHtml(currentUserDepartmentText() || "MG13")}</small>
+    </div>
+  `;
+}
+
+function navGroupFor(page) {
+  if (page === "Direktion") return "Leaderschaft";
+  if (page === "IT") return "System";
+  if (isDepartmentPage(page)) return "Abteilungen";
+  if (["Profil", "Postfach", "Kalender", "Changelog"].includes(page)) return "Account";
+  return "Allgemein";
+}
+
 function renderNavigation() {
-  $(".profile-card").innerHTML = `<img class="gang-sidebar-logo" src="/assets/mg13.png" alt="MG13"><div class="profile-copy"><strong>MG13</strong><span>Gang Dashboard</span></div>`;
-  $("#navigation").innerHTML = getVisiblePages().map((page) => `
-    <button class="nav-btn ${state.page === page ? "active" : ""}" data-page="${escapeHtml(page)}">
-      <span class="nav-icon">${iconSvg(page)}</span>
-      <span class="nav-label">${escapeHtml(navLabel(page))}</span>
-    </button>
-  `).join("");
+  $(".profile-card").innerHTML = renderSidebarProfile();
+  const pages = getVisiblePages();
+  const order = ["Allgemein", "Leaderschaft", "Abteilungen", "Account", "System"];
+  $("#navigation").innerHTML = order.map((group) => {
+    const groupPages = pages.filter((page) => navGroupFor(page) === group);
+    if (!groupPages.length) return "";
+    return `
+      <div class="nav-section">
+        <span class="nav-section-label">${escapeHtml(group)}</span>
+        ${groupPages.map((page) => `
+          <button class="nav-btn ${state.page === page ? "active" : ""}" data-page="${escapeHtml(page)}">
+            <span class="nav-icon">${iconSvg(page)}</span>
+            <span class="nav-label">${escapeHtml(navLabel(page))}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }).join("");
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.addEventListener("click", () => {
       state.page = button.dataset.page;

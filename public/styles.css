@@ -8566,6 +8566,21 @@ body {
   color: #f4fbff;
 }
 
+.profile-copy strong {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.profile-copy span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-copy small {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .profile-copy span,
 .profile-copy small,
 .muted,
@@ -8575,6 +8590,25 @@ body {
 
 .nav-btn {
   color: #9cb6c9;
+}
+
+.nav-section {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.nav-section:first-child {
+  margin-top: 0;
+}
+
+.nav-section-label {
+  padding: 0 10px 2px;
+  color: #5f7f96;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
 .nav-btn:hover,
@@ -8782,17 +8816,28 @@ textarea:focus {
 }
 
 .fight-stats-compact .stat-card {
-  min-height: 78px;
-  padding: 12px 14px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.fight-stats-compact {
+  gap: 10px;
 }
 
 .fight-stats-compact .gang-stat-card strong {
-  font-size: 24px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .fight-stats-compact .gang-stat-card i {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
+}
+
+.fight-stats-compact .gang-stat-card span,
+.fight-stats-compact .gang-stat-card small {
+  font-size: 11px;
 }
 
 .fight-row {
