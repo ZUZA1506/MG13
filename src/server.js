@@ -67,6 +67,57 @@ function defaultDepartments() {
   ];
 }
 
+function defaultBankTransactions() {
+  return [
+    { id: makeId("bank"), type: "income", person: "Carlos Mendez", reason: "Drogenverkauf", amount: 50000, dateTime: "2024-06-10T14:32", createdAt: nowIso() },
+    { id: makeId("bank"), type: "expense", person: "Fraktionskasse", reason: "Erstattung Diego", amount: 15000, dateTime: "2024-06-10T12:10", createdAt: nowIso() },
+    { id: makeId("bank"), type: "income", person: "Miguel Santos", reason: "Überfall-Beute", amount: 30000, dateTime: "2024-06-09T22:45", createdAt: nowIso() },
+    { id: makeId("bank"), type: "income", person: "El Diablo", reason: "Waffendeal", amount: 100000, dateTime: "2024-06-09T18:00", createdAt: nowIso() },
+    { id: makeId("bank"), type: "expense", person: "Fraktionskasse", reason: "Fahrzeugkauf", amount: 22000, dateTime: "2024-06-08T09:30", createdAt: nowIso() }
+  ];
+}
+
+function defaultReimbursements() {
+  return [
+    { id: makeId("refund"), person: "Diego Rivera", reason: "Fahrzeugreparatur nach Verfolgung", amount: 15000, status: "Beantragt", invoiceUrl: "", date: "2024-06-10", createdAt: nowIso() },
+    { id: makeId("refund"), person: "Miguel Santos", reason: "Medizinische Kosten", amount: 8500, status: "Ausgezahlt", invoiceUrl: "", date: "2024-06-09", createdAt: nowIso() },
+    { id: makeId("refund"), person: "Rafael Torres", reason: "Verlust von Equipment bei Überfall", amount: 22000, status: "Beantragt", invoiceUrl: "", date: "2024-06-08", createdAt: nowIso() },
+    { id: makeId("refund"), person: "Fernando Reyes", reason: "Fahrzeugverlust", amount: 12000, status: "Ausgezahlt", invoiceUrl: "", date: "2024-06-05", createdAt: nowIso() }
+  ];
+}
+
+function defaultItemList() {
+  return [
+    { id: makeId("item"), name: "Pistole", category: "Waffen", price: 3500 },
+    { id: makeId("item"), name: "SMG", category: "Waffen", price: 12000 },
+    { id: makeId("item"), name: "Assault Rifle", category: "Waffen", price: 25000 },
+    { id: makeId("item"), name: "Schutzweste", category: "Ausrüstung", price: 5000 },
+    { id: makeId("item"), name: "Erste-Hilfe-Kit", category: "Medizin", price: 1200 },
+    { id: makeId("item"), name: "Lockpick", category: "Tools", price: 800 },
+    { id: makeId("item"), name: "Kokain (1g)", category: "Substanzen", price: 2000 },
+    { id: makeId("item"), name: "Meth (1g)", category: "Substanzen", price: 1800 },
+    { id: makeId("item"), name: "Getuntes Fahrzeug", category: "Fahrzeuge", price: 85000 },
+    { id: makeId("item"), name: "Bargeld-Bündel", category: "Sonstiges", price: 10000 }
+  ];
+}
+
+function defaultLogistics() {
+  return {
+    boxes: [
+      { id: makeId("box"), name: "Lagerbox #1 — Waffen", capacity: 50, items: "10x Pistole\n5x SMG\n3x Assault Rifle\n20x Munition" },
+      { id: makeId("box"), name: "Lagerbox #2 — Medizin", capacity: 100, items: "30x Erste-Hilfe-Kit\n10x Adrenalin\n5x Verband" },
+      { id: makeId("box"), name: "Lagerbox #3 — Substanzen", capacity: 200, items: "50g Kokain\n30g Meth\n20x Joint" },
+      { id: makeId("box"), name: "Lagerbox #4 — Equipment", capacity: 80, items: "15x Schutzweste\n8x Lockpick\n5x Funkgerät" }
+    ],
+    vehicles: [
+      { id: makeId("veh"), name: "Schwarzer Sultan RS", status: "Verfügbar", cargo: "5x Pistole\n2x Schutzweste" },
+      { id: makeId("veh"), name: "Blauer Kuruma", status: "Unterwegs", cargo: "10x Kokain (1g)\nBargeld $20.000" },
+      { id: makeId("veh"), name: "Weißer Speedo", status: "Verfügbar", cargo: "" },
+      { id: makeId("veh"), name: "Schwarzer Baller", status: "In Reparatur", cargo: "3x SMG\nMunition" }
+    ]
+  };
+}
+
 function makeDepartment(id, name, description, applicationStatus) {
   return {
     id,
@@ -195,6 +246,10 @@ function ensureStorage() {
       fights: [],
       mapMarkers: [],
       dealerMarkerStates: {},
+      bankTransactions: defaultBankTransactions(),
+      reimbursements: defaultReimbursements(),
+      itemList: defaultItemList(),
+      logistics: defaultLogistics(),
       gangFactions: ["MG13"],
       fluctuation: [],
       uprankRules: defaultUprankRules(),
@@ -248,6 +303,10 @@ function readDb() {
   db.settings.fights = normalizeFights(db.settings.fights);
   db.settings.mapMarkers = normalizeMapMarkers(db.settings.mapMarkers);
   db.settings.dealerMarkerStates = db.settings.dealerMarkerStates && typeof db.settings.dealerMarkerStates === "object" ? db.settings.dealerMarkerStates : {};
+  db.settings.bankTransactions = normalizeBankTransactions(db.settings.bankTransactions);
+  db.settings.reimbursements = normalizeReimbursements(db.settings.reimbursements);
+  db.settings.itemList = normalizeItemList(db.settings.itemList);
+  db.settings.logistics = normalizeLogistics(db.settings.logistics);
   db.settings.gangFactions = normalizeGangFactions(db.settings.gangFactions);
   db.settings.uprankRules = normalizeUprankRules(db.settings.uprankRules);
   db.settings.uprankAdjustments = Array.isArray(db.settings.uprankAdjustments) ? db.settings.uprankAdjustments : [];
@@ -487,6 +546,70 @@ function normalizeMapMarkers(value) {
     .filter((marker) => marker.title && Number.isFinite(marker.x) && Number.isFinite(marker.y));
 }
 
+function normalizeBankTransactions(value) {
+  return (Array.isArray(value) && value.length ? value : defaultBankTransactions())
+    .map((row) => ({
+      id: String(row.id || makeId("bank")),
+      type: row.type === "expense" ? "expense" : "income",
+      person: String(row.person || "").trim(),
+      reason: String(row.reason || "").trim(),
+      amount: Math.max(0, Number(row.amount) || 0),
+      dateTime: String(row.dateTime || nowIso()).slice(0, 16),
+      createdAt: String(row.createdAt || nowIso())
+    }))
+    .filter((row) => row.person && row.reason && row.amount > 0)
+    .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+}
+
+function normalizeReimbursements(value) {
+  const statuses = new Set(["Beantragt", "Ausgezahlt", "Abgelehnt"]);
+  return (Array.isArray(value) && value.length ? value : defaultReimbursements())
+    .map((row) => ({
+      id: String(row.id || makeId("refund")),
+      person: String(row.person || "").trim(),
+      reason: String(row.reason || "").trim(),
+      amount: Math.max(0, Number(row.amount) || 0),
+      status: statuses.has(row.status) ? row.status : "Beantragt",
+      invoiceUrl: String(row.invoiceUrl || "").trim(),
+      date: String(row.date || todayIso()).slice(0, 10),
+      createdAt: String(row.createdAt || nowIso())
+    }))
+    .filter((row) => row.person && row.reason && row.amount > 0)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function normalizeItemList(value) {
+  return (Array.isArray(value) && value.length ? value : defaultItemList())
+    .map((row) => ({
+      id: String(row.id || makeId("item")),
+      name: String(row.name || "").trim(),
+      category: String(row.category || "Sonstiges").trim(),
+      price: Math.max(0, Number(row.price) || 0)
+    }))
+    .filter((row) => row.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function normalizeLogistics(value = {}) {
+  const fallback = defaultLogistics();
+  const boxesSource = Array.isArray(value.boxes) && value.boxes.length ? value.boxes : fallback.boxes;
+  const vehiclesSource = Array.isArray(value.vehicles) && value.vehicles.length ? value.vehicles : fallback.vehicles;
+  return {
+    boxes: boxesSource.map((box) => ({
+      id: String(box.id || makeId("box")),
+      name: String(box.name || "Lagerbox").trim(),
+      capacity: Math.max(1, Number(box.capacity) || 50),
+      items: String(box.items || "").trim()
+    })).filter((box) => box.name),
+    vehicles: vehiclesSource.map((vehicle) => ({
+      id: String(vehicle.id || makeId("veh")),
+      name: String(vehicle.name || "Fahrzeug").trim(),
+      status: ["Verfügbar", "Unterwegs", "In Reparatur"].includes(vehicle.status) ? vehicle.status : "Verfügbar",
+      cargo: String(vehicle.cargo || "").trim()
+    })).filter((vehicle) => vehicle.name)
+  };
+}
+
 function dealerIdFor(item) {
   return `dealer:${String(item.title || "").trim()}:${String(item.latitude || "").trim()}:${String(item.longitude || "").trim()}`;
 }
@@ -498,8 +621,8 @@ function normalizeDealerMarker(item, states = {}) {
     external: true,
     title: String(item.title || "Dealer").trim(),
     category: "Dealer",
-    x: Number(item.latitude),
-    y: Number(item.longitude),
+    x: Number(item.longitude),
+    y: Number(item.latitude),
     imageUrl: String(item.url || "").trim(),
     link: String(item.link || "").trim(),
     active: Boolean(states[id]?.active),
@@ -1340,6 +1463,30 @@ app.patch("/api/map/dealers/:id", requireAuth, (req, res) => {
   };
   writeDb(req.db);
   res.json({ ok: true, settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/bank", requireAuth, requireRole("Direktion"), (req, res) => {
+  req.db.settings.bankTransactions = normalizeBankTransactions(req.body.transactions);
+  writeDb(req.db);
+  res.json({ settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/reimbursements", requireAuth, requireRole("Direktion"), (req, res) => {
+  req.db.settings.reimbursements = normalizeReimbursements(req.body.reimbursements);
+  writeDb(req.db);
+  res.json({ settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/items", requireAuth, requireRole("Direktion"), (req, res) => {
+  req.db.settings.itemList = normalizeItemList(req.body.items);
+  writeDb(req.db);
+  res.json({ settings: publicSettings(req.db.settings) });
+});
+
+app.patch("/api/logistics", requireAuth, requireRole("Direktion"), (req, res) => {
+  req.db.settings.logistics = normalizeLogistics(req.body.logistics);
+  writeDb(req.db);
+  res.json({ settings: publicSettings(req.db.settings) });
 });
 
 app.post("/api/factions", requireAuth, requireRole("IT"), (req, res) => {

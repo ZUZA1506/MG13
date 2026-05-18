@@ -8848,6 +8848,28 @@ textarea:focus {
   line-height: 1.1;
 }
 
+.fight-stats-compact.gang-stats .stat-card {
+  min-height: 58px;
+  padding: 8px 14px;
+}
+
+.fight-stats-compact .gang-stat-card span,
+.fight-stats-compact .gang-stat-card strong,
+.fight-stats-compact .gang-stat-card small {
+  grid-column: 2;
+  text-align: left;
+}
+
+.fight-stats-compact .gang-stat-card i {
+  grid-column: 1;
+  color: #37d7ff;
+}
+
+.fight-stats-compact .gang-stat-card i svg {
+  width: 32px;
+  height: 32px;
+}
+
 .fight-row {
   grid-template-columns: 46px minmax(0, 1fr) 108px auto;
   padding: 14px;
@@ -9018,7 +9040,7 @@ tbody td {
 
 .map-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   gap: 16px;
   min-height: calc(100vh - 150px);
 }
@@ -9072,6 +9094,34 @@ tbody td {
   text-align: left;
 }
 
+.map-side-row-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.map-quick-toggle {
+  border: 1px solid rgba(148, 163, 184, .16);
+  background: rgba(148, 163, 184, .1);
+  color: #9fb9d0;
+  border-radius: 8px;
+  padding: 0 10px;
+  margin-bottom: 7px;
+  font-weight: 800;
+}
+
+.map-quick-toggle.active {
+  color: #7dffb1;
+  background: rgba(34, 197, 94, .14);
+  border-color: rgba(34, 197, 94, .34);
+}
+
+.map-search {
+  margin-top: 10px;
+  width: 100%;
+}
+
 .map-side-row i,
 .map-marker svg,
 .map-legend svg {
@@ -9115,22 +9165,19 @@ tbody td {
   position: absolute;
   inset: 0;
   transform-origin: center;
+  aspect-ratio: 1;
 }
 
 .gta-map-bg {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(rgba(6, 16, 28, .18), rgba(6, 16, 28, .28)),
-    url("https://dealermap.de/mapStyles/styleSatelite/1/0/0.png") center / cover no-repeat,
-    radial-gradient(circle at 43% 55%, rgba(34, 197, 94, .22), transparent 18%),
-    radial-gradient(circle at 52% 44%, rgba(148, 163, 184, .14), transparent 24%),
-    radial-gradient(circle at 40% 70%, rgba(59, 130, 246, .18), transparent 16%),
-    linear-gradient(30deg, transparent 47%, rgba(125, 211, 252, .08) 48%, transparent 50%),
-    linear-gradient(120deg, transparent 45%, rgba(125, 211, 252, .06) 46%, transparent 48%),
-    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 1px, transparent 1px 34px),
-    #0b1724;
+  background: #0b1724;
+}
+
+.gta-map-bg img {
+  position: absolute;
+  object-fit: cover;
+  display: block;
 }
 
 .gta-map-bg::after {
@@ -9191,6 +9238,13 @@ tbody td {
   padding: 10px;
   margin: 8px 0 12px;
   color: #fff;
+}
+
+.marker-status-switch {
+  border: 1px solid rgba(125, 211, 252, .2);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(56, 189, 248, .08);
 }
 
 .marker-detail-head i svg {
@@ -9299,4 +9353,268 @@ tbody td {
   .profile-mini-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.active-marker-panel.marker-overview-card {
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.active-marker-count {
+  font-size: 32px;
+  color: #eaf7ff;
+  line-height: 1;
+}
+
+.tool-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.tool-page-head h2 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.bank-stats {
+  margin-bottom: 24px;
+}
+
+.transaction-list,
+.refund-list {
+  display: grid;
+}
+
+.transaction-row,
+.refund-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 150px 150px auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(148, 163, 184, .14);
+}
+
+.refund-row {
+  grid-template-columns: minmax(0, 1fr) 130px 130px 120px;
+  border: 1px solid rgba(148, 163, 184, .14);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: rgba(15, 23, 42, .58);
+}
+
+.transaction-row i {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-style: normal;
+}
+
+.transaction-row i.income,
+.transaction-row b.income {
+  color: #22c55e;
+}
+
+.transaction-row i.expense,
+.transaction-row b.expense {
+  color: #ef4444;
+}
+
+.transaction-row i.income { background: rgba(34, 197, 94, .14); }
+.transaction-row i.expense { background: rgba(239, 68, 68, .14); }
+
+.transaction-row small,
+.refund-row small,
+.item-card small {
+  color: #8faac0;
+}
+
+.refund-status {
+  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid rgba(148, 163, 184, .14);
+  font-weight: 900;
+}
+
+.refund-status.beantragt {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, .14);
+}
+
+.refund-status.ausgezahlt {
+  color: #22c55e;
+  background: rgba(34, 197, 94, .14);
+}
+
+.refund-status.abgelehnt {
+  color: #ef4444;
+  background: rgba(239, 68, 68, .14);
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.item-card {
+  display: grid;
+  grid-template-columns: 42px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 16px;
+  border: 1px solid rgba(148, 163, 184, .14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .58);
+}
+
+.item-card i {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(14, 165, 233, .14);
+  color: #00c8ff;
+}
+
+.item-card b {
+  color: #00c8ff;
+  font-size: 18px;
+}
+
+.logistics-section {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.logistics-box-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.logistics-card,
+.vehicle-card {
+  position: relative;
+  border: 1px solid rgba(148, 163, 184, .14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .58);
+  padding: 18px;
+}
+
+.logistics-card p {
+  color: #8faac0;
+  line-height: 1.7;
+}
+
+.storage-meter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  color: #8faac0;
+}
+
+.storage-meter::after {
+  content: "";
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .1);
+}
+
+.storage-meter i {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: #00b8f5;
+  margin-top: -16px;
+}
+
+.vehicle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vehicle-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.vehicle-card small {
+  display: block;
+  color: #8faac0;
+  margin-top: 10px;
+}
+
+.vehicle-card b {
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(34, 197, 94, .14);
+  color: #22c55e;
+}
+
+.vehicle-card b.unterwegs {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, .14);
+}
+
+.vehicle-card b.in-reparatur {
+  color: #ef4444;
+  background: rgba(239, 68, 68, .14);
+}
+
+.profile-facts-inline {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  border-top: 1px solid rgba(148, 163, 184, .14);
+  padding-top: 14px;
+}
+
+.profile-facts-inline span {
+  border: 1px solid rgba(148, 163, 184, .14);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .44);
+  padding: 12px;
+}
+
+.profile-facts-inline b {
+  display: block;
+  color: #8fb7d7;
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+@media (max-width: 1200px) {
+  .item-grid,
+  .logistics-box-grid,
+  .vehicle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fight-stats-compact {
+  align-items: start !important;
+}
+
+.fight-stats-compact.gang-stats .stat-card,
+.fight-stats-compact .stat-card {
+  min-height: 70px !important;
+  height: 70px !important;
+  padding: 8px 14px !important;
+  align-content: center !important;
 }

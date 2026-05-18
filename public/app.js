@@ -90,6 +90,9 @@ const pages = [
   "Beschlagnahmung",
   "Informationen",
   "Karte",
+  "Erstattungen",
+  "Itemliste",
+  "Fraktionsbank",
   "Ausbilderübersicht",
   "Meine Lernkontrollen",
   "Abteilungen",
@@ -107,6 +110,9 @@ const pageIcons = {
   "Beschlagnahmung": "◇",
   "Informationen": "ⓘ",
   "Karte": "⌖",
+  "Erstattungen": "▤",
+  "Itemliste": "▧",
+  "Fraktionsbank": "$",
   "Ausbilderübersicht": "□",
   "Meine Lernkontrollen": "✺",
   "Abteilungen": "▦",
@@ -143,6 +149,9 @@ const pageDescriptions = {
   "Beschlagnahmung": "Erfassung und Verwaltung beschlagnahmter Gegenstände",
   "Informationen": "Zentrale Informationen und Bewerbungsstatus verwalten",
   "Karte": "Interaktive MG13 Karte mit Spots, Laboren, MAZ und Dealern",
+  "Erstattungen": "Rechnungen und Erstattungsanträge",
+  "Itemliste": "Preise und verfügbare Items",
+  "Fraktionsbank": "Finanzen und Transaktionen",
   "Ausbilderübersicht": "Übersicht aller Ausbildungsmodule und Prüfungen",
   "Meine Lernkontrollen": "Eigene Lernkontrollen und Prüfungsstände einsehen",
   "Abteilungen": "Übersicht aller Abteilungen und Personal",
@@ -282,6 +291,9 @@ function iconSvg(page) {
     "Dashboard": '<path d="M3 13h8V3H3v10Z"/><path d="M13 21h8V11h-8v10Z"/><path d="M13 3h8v6h-8V3Z"/><path d="M3 21h8v-6H3v6Z"/>',
     "Fight": '<path d="M14.5 4.5 19 9l-9.5 9.5H5v-4.5L14.5 4.5Z"/><path d="m13 6 5 5"/><path d="M4 20h16"/>',
     "Karte": '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15M15 6v15"/><circle cx="12" cy="12" r="2"/>',
+    "Fraktionsbank": '<path d="M3 21h18"/><path d="M4 10h16"/><path d="M5 10l7-6 7 6"/><path d="M6 10v8M10 10v8M14 10v8M18 10v8"/>',
+    "Erstattungen": '<path d="M7 3h10l2 2v16H5V3h2Z"/><path d="M9 8h6M9 12h6M9 16h3"/><path d="M17 3v4h4"/>',
+    "Itemliste": '<path d="M12 3 20 7.5v9L12 21 4 16.5v-9L12 3Z"/><path d="M12 12 4.5 7.8M12 12l7.5-4.2M12 12v8.5"/>',
     "Home": '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
     "Plane": '<path d="M10 21h4l1-7 5-3a2 2 0 0 0-2-3l-5 2-2-6H8l1 8-5 3v3l6-2v5Z"/>',
     "UserRound": '<circle cx="12" cy="8" r="4"/><path d="M6 21a6 6 0 0 1 12 0"/>',
@@ -9749,7 +9761,7 @@ function renderSidebarProfile() {
 }
 
 function navGroupFor(page) {
-  if (page === "Direktion") return "Leaderschaft";
+  if (page === "Direktion" || page === "Fraktionsbank") return "Leaderschaft";
   if (page === "IT") return "System";
   if (isDepartmentPage(page)) return "Leaderschaft";
   if (["Profil", "Postfach", "Kalender", "Changelog"].includes(page)) return "Allgemein";
@@ -9799,12 +9811,19 @@ function renderPage() {
   if (state.page === "Fight") return renderFight();
   if (state.page === "Mitglieder") return renderMembers();
   if (state.page === "Mitgliederfluktation") return renderFluctuation();
+  if (state.page === "Fraktionsbank") return renderFactionBank();
+  if (state.page === "Erstattungen") return renderReimbursements();
+  if (state.page === "Itemliste") return renderItemList();
   if (state.page === "Kalender") return renderCalendar();
   if (state.page === "Informationen") return renderInformation();
   if (state.page === "Postfach") return renderPostfach();
   if (state.page === "IT") return renderIT();
   if (state.page === "Direktion") return renderDirektion();
-  if (isDepartmentPage(state.page)) return renderDepartmentPage(departmentByPage(state.page));
+  if (isDepartmentPage(state.page)) {
+    const department = departmentByPage(state.page);
+    if (department?.id === "logistik") return renderLogisticsPage();
+    return renderDepartmentPage(department);
+  }
   if (state.page === "Profil") return renderProfile();
   return renderTemplate(state.page);
 }
@@ -9827,8 +9846,13 @@ function markerIconName(category) {
 function renderActiveMarkerList(category, title) {
   const items = activeMapMarkers(category);
   return `
-    <article class="panel gang-panel active-marker-panel">
-      <div class="panel-header"><h3>${iconSvg(markerIconName(category))} ${escapeHtml(title)}</h3><span class="gang-chip ${items.length ? "green" : ""}">${items.length} Aktiv</span></div>
+    <article class="panel gang-panel active-marker-panel marker-overview-card ${markerCategoryClass(category)}">
+      <div class="panel-header">
+        <h3>${iconSvg(markerIconName(category))} ${escapeHtml(title)}</h3>
+        <button class="ghost-btn dashboard-open-map" data-category="${escapeHtml(category)}">Alle anzeigen</button>
+      </div>
+      <strong class="active-marker-count">${items.length}</strong>
+      <small>Aktive Einträge</small>
       <div class="marker-mini-list">
         ${items.map((marker) => `
           <button class="gang-list-row active dashboard-marker-open" data-marker-id="${escapeHtml(marker.id)}">
@@ -9871,6 +9895,12 @@ function renderDashboard() {
     localStorage.setItem("mg13_focus_marker", button.dataset.markerId);
     renderApp();
   }));
+  document.querySelectorAll(".dashboard-open-map").forEach((button) => button.addEventListener("click", () => {
+    state.page = "Karte";
+    localStorage.setItem("lspd_page", state.page);
+    localStorage.setItem("mg13_map_search", button.dataset.category || "");
+    renderApp();
+  }));
 }
 
 function renderGangStat(label, value, subline, icon) {
@@ -9892,11 +9922,11 @@ async function fetchDealerMarkers() {
 }
 
 function mapPercent(marker) {
-  const x = Math.max(-8500, Math.min(8500, Number(marker.x || 0)));
-  const y = Math.max(-8500, Math.min(8500, Number(marker.y || 0)));
+  const x = Math.max(0, Math.min(8192, Number(marker.x || 0)));
+  const y = Math.max(-8192, Math.min(0, Number(marker.y || 0)));
   return {
-    left: ((x + 8500) / 17000) * 100,
-    top: ((8500 - y) / 17000) * 100
+    left: (x / 8192) * 100,
+    top: ((y + 8192) / 8192) * 100
   };
 }
 
@@ -9905,9 +9935,21 @@ function screenToMapPoint(event, board) {
   const left = ((event.clientX - rect.left) / rect.width) * 100;
   const top = ((event.clientY - rect.top) / rect.height) * 100;
   return {
-    x: Math.round(((left / 100) * 17000 - 8500) * 100) / 100,
-    y: Math.round((8500 - (top / 100) * 17000) * 100) / 100
+    x: Math.round(((left / 100) * 8192) * 100) / 100,
+    y: Math.round((-8192 + (top / 100) * 8192) * 100) / 100
   };
+}
+
+function renderMapTiles() {
+  const zoom = 3;
+  const count = 2 ** zoom;
+  const tiles = [];
+  for (let y = 0; y < count; y += 1) {
+    for (let x = 0; x < count; x += 1) {
+      tiles.push(`<img src="https://dealermap.de/mapStyles/styleSatelite/${zoom}/${x}/${y}.png" alt="" style="left:${(x / count) * 100}%;top:${(y / count) * 100}%;width:${100 / count}%;height:${100 / count}%;">`);
+    }
+  }
+  return tiles.join("");
 }
 
 function markerCategoryClass(category) {
@@ -9924,15 +9966,19 @@ function renderMapMarker(marker) {
 }
 
 function renderMapCategoryList(category) {
-  const items = mapMarkers().filter((marker) => marker.category === category);
+  const term = (localStorage.getItem("mg13_map_search") || "").trim().toLowerCase();
+  const items = mapMarkers().filter((marker) => marker.category === category && (!term || `${marker.title} ${marker.description || ""}`.toLowerCase().includes(term)));
   return `
     <section class="map-side-section">
       <h4>${escapeHtml(category)} <span>${items.filter((item) => item.active).length}/${items.length}</span></h4>
-      ${items.slice(0, 40).map((marker) => `
+      ${items.slice(0, 24).map((marker) => `
+        <div class="map-side-row-wrap">
         <button class="map-side-row" data-marker-id="${escapeHtml(marker.id)}">
           <i class="${markerCategoryClass(marker.category)}">${iconSvg(markerIconName(marker.category))}</i>
           <span><strong>${escapeHtml(marker.title)}</strong><small>${marker.active ? "Aktiv" : "Inaktiv"}</small></span>
         </button>
+        <button class="map-quick-toggle ${marker.active ? "active" : ""}" data-marker-id="${escapeHtml(marker.id)}">${marker.active ? "Aktiv" : "Inaktiv"}</button>
+        </div>
       `).join("") || `<p class="muted">Noch keine Einträge.</p>`}
     </section>
   `;
@@ -9942,16 +9988,6 @@ function renderMapPage() {
   const markers = mapMarkers();
   content.innerHTML = `
     <section class="map-layout">
-      <aside class="panel map-sidebar">
-        <div class="panel-header">
-          <div><h3>Karte</h3><p class="muted">Dealer werden aus der API geladen, eigene Marker werden gespeichert.</p></div>
-        </div>
-        <button class="blue-btn full" id="startMarkerAdd">${iconSvg("Plus")} Markierung setzen</button>
-        <div class="map-legend">
-          ${["Dealer", "Lester", "Labor", "MAZ"].map((category) => `<span class="${markerCategoryClass(category)}">${iconSvg(markerIconName(category))} ${category}</span>`).join("")}
-        </div>
-        ${["Labor", "Lester", "MAZ", "Dealer"].map(renderMapCategoryList).join("")}
-      </aside>
       <section class="panel map-stage-panel">
         <div class="map-toolbar">
           <span>${markers.length} Markierungen</span>
@@ -9963,13 +9999,24 @@ function renderMapPage() {
         </div>
         <div class="gta-map-shell ${mapAddMode ? "placing" : ""}" id="gtaMapShell">
           <div class="gta-map-board" id="gtaMapBoard" style="transform: translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom});">
-            <div class="gta-map-bg"></div>
+            <div class="gta-map-bg">${renderMapTiles()}</div>
             ${markers.map(renderMapMarker).join("")}
             ${mapDraftPoint ? `<span class="map-draft-pin" style="left:${mapPercent(mapDraftPoint).left}%;top:${mapPercent(mapDraftPoint).top}%;"></span>` : ""}
           </div>
         </div>
         <p class="muted map-hint">${mapAddMode ? "Klicke auf die Karte, um die Position für eine neue Markierung zu wählen." : "Scrollen zoomt, Marker anklicken zeigt Details."}</p>
       </section>
+      <aside class="panel map-sidebar">
+        <div class="panel-header">
+          <div><h3>Karte</h3><p class="muted">Dealer werden aus der API geladen, eigene Marker werden gespeichert.</p></div>
+        </div>
+        <button class="blue-btn full" id="startMarkerAdd">${iconSvg("Plus")} Markierung setzen</button>
+        <input class="map-search" id="mapSearch" placeholder="Marker suchen..." value="${escapeHtml(localStorage.getItem("mg13_map_search") || "")}">
+        <div class="map-legend">
+          ${["Dealer", "Lester", "Labor", "MAZ"].map((category) => `<span class="${markerCategoryClass(category)}">${iconSvg(markerIconName(category))} ${category}</span>`).join("")}
+        </div>
+        ${["Labor", "Lester", "MAZ", "Dealer"].map(renderMapCategoryList).join("")}
+      </aside>
     </section>
   `;
   bindMapPage();
@@ -9989,6 +10036,11 @@ function bindMapPage() {
   });
   $("#mapZoomIn")?.addEventListener("click", () => updateMapZoom(mapZoom + 0.2));
   $("#mapZoomOut")?.addEventListener("click", () => updateMapZoom(mapZoom - 0.2));
+  $("#mapSearch")?.addEventListener("input", (event) => {
+    localStorage.setItem("mg13_map_search", event.target.value);
+    renderMapPage();
+    $("#mapSearch")?.focus();
+  });
   $("#mapReset")?.addEventListener("click", () => {
     mapZoom = 1;
     mapPan = { x: 0, y: 0 };
@@ -10027,6 +10079,23 @@ function bindMapPage() {
     const marker = mapMarkers().find((item) => item.id === button.dataset.markerId);
     if (marker) openMapMarkerModal(marker);
   }));
+  document.querySelectorAll(".map-quick-toggle").forEach((button) => button.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    const marker = mapMarkers().find((item) => item.id === button.dataset.markerId);
+    if (marker) await toggleMarkerActive(marker);
+  }));
+}
+
+async function toggleMarkerActive(marker) {
+  const next = !marker.active;
+  if (marker.category === "Dealer") {
+    await api(`/api/map/dealers/${encodeURIComponent(marker.id)}`, { method: "PATCH", body: JSON.stringify({ active: next, description: marker.description || "" }) });
+    await fetchDealerMarkers();
+  } else {
+    const data = await api(`/api/map/markers/${marker.id}`, { method: "PATCH", body: JSON.stringify({ active: next }) });
+    state.settings = data.settings;
+  }
+  renderMapPage();
 }
 
 function updateMapZoom(value) {
@@ -10060,7 +10129,7 @@ function openMapMarkerModal(marker = null, point = null) {
       <label>Y<input id="markerY" type="number" step="0.01" value="${escapeHtml(y)}" ${isDealer ? "readonly" : ""}></label>
       <label class="full">Bild-Link<input id="markerImageUrl" value="${escapeHtml(marker?.imageUrl || "")}" ${isDealer ? "readonly" : ""} placeholder="https://..."></label>
       <label class="full">Info / Beschreibung<textarea id="markerDescription">${escapeHtml(marker?.description || "")}</textarea></label>
-      <label class="toggle-row full"><input id="markerActive" type="checkbox" ${marker?.active ? "checked" : ""}><span>Aktiv</span></label>
+      <label class="toggle-row full marker-status-switch"><input id="markerActive" type="checkbox" ${marker?.active ? "checked" : ""}><span>${marker?.active ? "Aktiv" : "Inaktiv"}</span></label>
     </div>
     ${marker?.link ? `<a class="ghost-btn full" href="${escapeHtml(marker.link)}" target="_blank" rel="noreferrer">Dealermap-Link öffnen</a>` : ""}
     <p id="modalError" class="form-error"></p>
@@ -10284,7 +10353,7 @@ function renderInformation() {
     <section class="panel information-combined-card">
       <div class="panel-header">
         <div>
-          <h3>${iconSvg("Informationen")} Vorschriften & Weiterleitungen</h3>
+          <h3>Vorschriften & Weiterleitungen</h3>
           <p class="muted">Direkt sichtbare MG13 Informationen ohne einzelne Vorschriften-Kacheln.</p>
         </div>
         ${canEdit ? `<button class="blue-btn" id="editCombinedInfo">${actionIcon("edit")} Bearbeiten</button>` : ""}
@@ -10345,6 +10414,265 @@ function openCombinedInformationModal(doc) {
   });
 }
 
+function money(value) {
+  return `$${Number(value || 0).toLocaleString("de-DE")}`;
+}
+
+async function saveBankTransactions(transactions) {
+  const data = await api("/api/bank", { method: "PATCH", body: JSON.stringify({ transactions }) });
+  state.settings = data.settings;
+}
+
+async function saveReimbursements(reimbursements) {
+  const data = await api("/api/reimbursements", { method: "PATCH", body: JSON.stringify({ reimbursements }) });
+  state.settings = data.settings;
+}
+
+async function saveItems(items) {
+  const data = await api("/api/items", { method: "PATCH", body: JSON.stringify({ items }) });
+  state.settings = data.settings;
+}
+
+async function saveLogistics(logistics) {
+  const data = await api("/api/logistics", { method: "PATCH", body: JSON.stringify({ logistics }) });
+  state.settings = data.settings;
+}
+
+function renderFactionBank() {
+  const rows = state.settings.bankTransactions || [];
+  const income = rows.filter((row) => row.type === "income").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const expense = rows.filter((row) => row.type === "expense").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  content.innerHTML = `
+    <section class="tool-page-head">
+      <div><h2>Fraktionsbank</h2><p class="muted">Finanzen & Transaktionen</p></div>
+      <div class="button-row"><button class="ghost-btn" id="addBankExpense">↘ Auszahlung</button><button class="blue-btn" id="addBankIncome">${iconSvg("Plus")} Einzahlung</button></div>
+    </section>
+    <section class="grid-3 bank-stats">
+      <article class="stat-card"><span>Kontostand</span><strong>${money(income - expense)}</strong><small>Aktueller Stand</small></article>
+      <article class="stat-card"><span>Einnahmen gesamt</span><strong>+${money(income)}</strong><small>${rows.filter((row) => row.type === "income").length} Einzahlungen</small></article>
+      <article class="stat-card"><span>Ausgaben gesamt</span><strong>-${money(expense)}</strong><small>${rows.filter((row) => row.type === "expense").length} Auszahlungen</small></article>
+    </section>
+    <section class="panel transaction-panel">
+      <div class="panel-header"><h3>Letzte Transaktionen</h3></div>
+      <div class="transaction-list">
+        ${rows.map((row) => `
+          <article class="transaction-row">
+            <i class="${row.type}">${row.type === "income" ? "↗" : "↘"}</i>
+            <span><strong>${escapeHtml(row.person)}</strong><small>${escapeHtml(row.reason)}</small></span>
+            <b class="${row.type}">${row.type === "income" ? "+" : "-"}${money(row.amount)}</b>
+            <small>${escapeHtml(String(row.dateTime || "").replace("T", " "))}</small>
+            <button class="mini-icon edit-bank-row" data-id="${escapeHtml(row.id)}">${actionIcon("edit")}</button>
+          </article>
+        `).join("") || `<p class="muted">Noch keine Transaktionen.</p>`}
+      </div>
+    </section>
+  `;
+  $("#addBankIncome")?.addEventListener("click", () => openBankModal("income"));
+  $("#addBankExpense")?.addEventListener("click", () => openBankModal("expense"));
+  document.querySelectorAll(".edit-bank-row").forEach((button) => button.addEventListener("click", () => openBankModal(null, rows.find((row) => row.id === button.dataset.id))));
+}
+
+function openBankModal(type = "income", row = null) {
+  const nextType = row?.type || type || "income";
+  openModal(`
+    <h3>${nextType === "income" ? "Einzahlung" : "Auszahlung"}</h3>
+    <div class="form-grid">
+      <label>Typ<select id="bankType"><option value="income" ${nextType === "income" ? "selected" : ""}>Einzahlung</option><option value="expense" ${nextType === "expense" ? "selected" : ""}>Auszahlung</option></select></label>
+      <label>Name<input id="bankPerson" value="${escapeHtml(row?.person || "")}"></label>
+      <label>Grund<input id="bankReason" value="${escapeHtml(row?.reason || "")}"></label>
+      <label>Betrag<input id="bankAmount" type="number" value="${escapeHtml(row?.amount || "")}"></label>
+      <label>Datum<input id="bankDateTime" type="datetime-local" value="${escapeHtml(row?.dateTime || toDatetimeLocal(new Date().toISOString()))}"></label>
+    </div>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button>${row ? `<button class="red-btn" id="deleteBankRow">Löschen</button>` : ""}<button class="blue-btn" id="saveBankRow">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveBankRow").addEventListener("click", async () => {
+      const next = { id: row?.id || makeTrainingId("bank"), type: $("#bankType").value, person: $("#bankPerson").value, reason: $("#bankReason").value, amount: $("#bankAmount").value, dateTime: $("#bankDateTime").value, createdAt: row?.createdAt || new Date().toISOString() };
+      await saveBankTransactions(upsertById(state.settings.bankTransactions || [], next));
+      closeModal();
+      renderFactionBank();
+    });
+    modal.querySelector("#deleteBankRow")?.addEventListener("click", async () => {
+      await saveBankTransactions((state.settings.bankTransactions || []).filter((item) => item.id !== row.id));
+      closeModal();
+      renderFactionBank();
+    });
+  });
+}
+
+function renderReimbursements() {
+  const rows = state.settings.reimbursements || [];
+  const paid = rows.filter((row) => row.status === "Ausgezahlt").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  content.innerHTML = `
+    <section class="tool-page-head"><div><h2>Erstattungen</h2><p class="muted">Rechnungen & Erstattungsanträge</p></div><button class="blue-btn" id="addRefund">${iconSvg("Plus")} Neue Erstattung</button></section>
+    <section class="grid-3 bank-stats">
+      <article class="stat-card"><span>Anträge gesamt</span><strong>${rows.length}</strong></article>
+      <article class="stat-card"><span>Offen</span><strong>${rows.filter((row) => row.status === "Beantragt").length}</strong></article>
+      <article class="stat-card"><span>Ausgezahlt</span><strong>${money(paid)}</strong><small>von ${money(total)}</small></article>
+    </section>
+    <section class="refund-list">
+      ${rows.map((row) => `
+        <article class="refund-row">
+          <span><strong>${escapeHtml(row.person)}</strong><small>${escapeHtml(row.reason)}</small>${row.invoiceUrl ? `<a href="${escapeHtml(row.invoiceUrl)}" target="_blank" rel="noreferrer">Rechnung öffnen</a>` : ""}</span>
+          <b>${money(row.amount)}</b>
+          <button class="refund-status ${row.status.toLowerCase()} edit-refund" data-id="${escapeHtml(row.id)}">${escapeHtml(row.status)}</button>
+          <small>${escapeHtml(row.date)}</small>
+        </article>
+      `).join("") || `<p class="muted">Noch keine Erstattungen.</p>`}
+    </section>
+  `;
+  $("#addRefund")?.addEventListener("click", () => openRefundModal());
+  document.querySelectorAll(".edit-refund").forEach((button) => button.addEventListener("click", () => openRefundModal(rows.find((row) => row.id === button.dataset.id))));
+}
+
+function openRefundModal(row = null) {
+  openModal(`
+    <h3>${row ? "Erstattung bearbeiten" : "Neue Erstattung"}</h3>
+    <div class="form-grid">
+      <label>Name<input id="refundPerson" value="${escapeHtml(row?.person || "")}"></label>
+      <label>Grund<input id="refundReason" value="${escapeHtml(row?.reason || "")}"></label>
+      <label>Betrag<input id="refundAmount" type="number" value="${escapeHtml(row?.amount || "")}"></label>
+      <label>Status<select id="refundStatus">${["Beantragt", "Ausgezahlt", "Abgelehnt"].map((status) => `<option ${row?.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+      <label>Datum<input id="refundDate" type="date" value="${escapeHtml(row?.date || isoDateLocal(new Date()))}"></label>
+      <label class="full">Rechnung Link<input id="refundInvoice" value="${escapeHtml(row?.invoiceUrl || "")}" placeholder="https://..."></label>
+    </div>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button>${row ? `<button class="red-btn" id="deleteRefund">Löschen</button>` : ""}<button class="blue-btn" id="saveRefund">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveRefund").addEventListener("click", async () => {
+      const next = { id: row?.id || makeTrainingId("refund"), person: $("#refundPerson").value, reason: $("#refundReason").value, amount: $("#refundAmount").value, status: $("#refundStatus").value, date: $("#refundDate").value, invoiceUrl: $("#refundInvoice").value, createdAt: row?.createdAt || new Date().toISOString() };
+      await saveReimbursements(upsertById(state.settings.reimbursements || [], next));
+      closeModal();
+      renderReimbursements();
+    });
+    modal.querySelector("#deleteRefund")?.addEventListener("click", async () => {
+      await saveReimbursements((state.settings.reimbursements || []).filter((item) => item.id !== row.id));
+      closeModal();
+      renderReimbursements();
+    });
+  });
+}
+
+function renderItemList() {
+  const term = (localStorage.getItem("mg13_item_search") || "").toLowerCase();
+  const items = (state.settings.itemList || []).filter((item) => !term || `${item.name} ${item.category}`.toLowerCase().includes(term));
+  content.innerHTML = `
+    <section class="tool-page-head"><div><h2>Itemliste</h2><p class="muted">${items.length} Items verfügbar</p></div><div class="button-row"><input id="itemSearch" placeholder="Item suchen..." value="${escapeHtml(localStorage.getItem("mg13_item_search") || "")}"><button class="blue-btn" id="addItem">${iconSvg("Plus")} Item hinzufügen</button></div></section>
+    <section class="item-grid">
+      ${items.map((item) => `<article class="item-card"><i>${iconSvg("Itemliste")}</i><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.category)}</small></span><b>${money(item.price)}</b><button class="mini-icon edit-item" data-id="${escapeHtml(item.id)}">${actionIcon("edit")}</button></article>`).join("") || `<p class="muted">Keine Items gefunden.</p>`}
+    </section>
+  `;
+  $("#itemSearch")?.addEventListener("input", (event) => {
+    localStorage.setItem("mg13_item_search", event.target.value);
+    renderItemList();
+    $("#itemSearch")?.focus();
+  });
+  $("#addItem")?.addEventListener("click", () => openItemModal());
+  document.querySelectorAll(".edit-item").forEach((button) => button.addEventListener("click", () => openItemModal((state.settings.itemList || []).find((item) => item.id === button.dataset.id))));
+}
+
+function openItemModal(item = null) {
+  openModal(`
+    <h3>${item ? "Item bearbeiten" : "Item hinzufügen"}</h3>
+    <div class="form-grid">
+      <label>Name<input id="itemName" value="${escapeHtml(item?.name || "")}"></label>
+      <label>Kategorie<input id="itemCategory" value="${escapeHtml(item?.category || "")}"></label>
+      <label>Preis<input id="itemPrice" type="number" value="${escapeHtml(item?.price || "")}"></label>
+    </div>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button>${item ? `<button class="red-btn" id="deleteItem">Löschen</button>` : ""}<button class="blue-btn" id="saveItem">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveItem").addEventListener("click", async () => {
+      const next = { id: item?.id || makeTrainingId("item"), name: $("#itemName").value, category: $("#itemCategory").value, price: $("#itemPrice").value };
+      await saveItems(upsertById(state.settings.itemList || [], next));
+      closeModal();
+      renderItemList();
+    });
+    modal.querySelector("#deleteItem")?.addEventListener("click", async () => {
+      await saveItems((state.settings.itemList || []).filter((row) => row.id !== item.id));
+      closeModal();
+      renderItemList();
+    });
+  });
+}
+
+function logisticsUsedCount(text) {
+  return String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length;
+}
+
+function renderLogisticsPage() {
+  const logistics = state.settings.logistics || { boxes: [], vehicles: [] };
+  content.innerHTML = `
+    <section class="tool-page-head"><div><h2>Logistik</h2><p class="muted">Lagerboxen & Fahrzeuge</p></div></section>
+    <section class="logistics-section">
+      <div class="panel-header"><h3>${iconSvg("Itemliste")} Lagerboxen <small>(${logistics.boxes.length})</small></h3><button class="blue-btn" id="addLogisticsBox">${iconSvg("Plus")} Neue Box</button></div>
+      <div class="logistics-box-grid">
+        ${logistics.boxes.map((box) => {
+          const used = logisticsUsedCount(box.items);
+          const percent = Math.min(100, Math.round((used / Number(box.capacity || 1)) * 100));
+          return `<article class="logistics-card"><button class="mini-icon edit-box" data-id="${escapeHtml(box.id)}">${actionIcon("edit")}</button><h3>${escapeHtml(box.name)}</h3><div class="storage-meter"><span>${used} / ${box.capacity}</span><b>${percent}%</b><i style="width:${percent}%"></i></div><p>${escapeHtml(box.items || "Leer").replace(/\n/g, "<br>")}</p></article>`;
+        }).join("")}
+      </div>
+    </section>
+    <section class="logistics-section">
+      <div class="panel-header"><h3>${iconSvg("Karte")} Fahrzeuge <small>(${logistics.vehicles.length})</small></h3><button class="blue-btn" id="addLogisticsVehicle">${iconSvg("Plus")} Neues Fahrzeug</button></div>
+      <div class="vehicle-grid">
+        ${logistics.vehicles.map((vehicle) => `<article class="vehicle-card"><button class="mini-icon edit-vehicle" data-id="${escapeHtml(vehicle.id)}">${actionIcon("edit")}</button><span><strong>${escapeHtml(vehicle.name)}</strong><small>${escapeHtml(vehicle.cargo || "Leer").replace(/\n/g, " · ")}</small></span><b class="${vehicle.status.toLowerCase().replaceAll(" ", "-")}">${escapeHtml(vehicle.status)}</b></article>`).join("")}
+      </div>
+    </section>
+  `;
+  $("#addLogisticsBox")?.addEventListener("click", () => openLogisticsBoxModal());
+  $("#addLogisticsVehicle")?.addEventListener("click", () => openLogisticsVehicleModal());
+  document.querySelectorAll(".edit-box").forEach((button) => button.addEventListener("click", () => openLogisticsBoxModal(logistics.boxes.find((box) => box.id === button.dataset.id))));
+  document.querySelectorAll(".edit-vehicle").forEach((button) => button.addEventListener("click", () => openLogisticsVehicleModal(logistics.vehicles.find((vehicle) => vehicle.id === button.dataset.id))));
+}
+
+function openLogisticsBoxModal(box = null) {
+  openModal(`
+    <h3>${box ? "Box bearbeiten" : "Neue Box"}</h3>
+    <label>Name<input id="boxName" value="${escapeHtml(box?.name || "")}"></label>
+    <label>Kapazität<input id="boxCapacity" type="number" value="${escapeHtml(box?.capacity || 50)}"></label>
+    <label>Items<textarea id="boxItems" rows="7">${escapeHtml(box?.items || "")}</textarea></label>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button>${box ? `<button class="red-btn" id="deleteBox">Löschen</button>` : ""}<button class="blue-btn" id="saveBox">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveBox").addEventListener("click", async () => {
+      const logistics = state.settings.logistics || { boxes: [], vehicles: [] };
+      const next = { id: box?.id || makeTrainingId("box"), name: $("#boxName").value, capacity: $("#boxCapacity").value, items: $("#boxItems").value };
+      await saveLogistics({ ...logistics, boxes: upsertById(logistics.boxes || [], next) });
+      closeModal();
+      renderLogisticsPage();
+    });
+    modal.querySelector("#deleteBox")?.addEventListener("click", async () => {
+      const logistics = state.settings.logistics || { boxes: [], vehicles: [] };
+      await saveLogistics({ ...logistics, boxes: (logistics.boxes || []).filter((row) => row.id !== box.id) });
+      closeModal();
+      renderLogisticsPage();
+    });
+  });
+}
+
+function openLogisticsVehicleModal(vehicle = null) {
+  openModal(`
+    <h3>${vehicle ? "Fahrzeug bearbeiten" : "Neues Fahrzeug"}</h3>
+    <label>Name<input id="vehicleName" value="${escapeHtml(vehicle?.name || "")}"></label>
+    <label>Status<select id="vehicleStatus">${["Verfügbar", "Unterwegs", "In Reparatur"].map((status) => `<option ${vehicle?.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+    <label>Ladung<textarea id="vehicleCargo" rows="5">${escapeHtml(vehicle?.cargo || "")}</textarea></label>
+    <div class="modal-actions"><button class="ghost-btn" data-close>Abbrechen</button>${vehicle ? `<button class="red-btn" id="deleteVehicle">Löschen</button>` : ""}<button class="blue-btn" id="saveVehicle">Speichern</button></div>
+  `, (modal) => {
+    modal.querySelector("#saveVehicle").addEventListener("click", async () => {
+      const logistics = state.settings.logistics || { boxes: [], vehicles: [] };
+      const next = { id: vehicle?.id || makeTrainingId("veh"), name: $("#vehicleName").value, status: $("#vehicleStatus").value, cargo: $("#vehicleCargo").value };
+      await saveLogistics({ ...logistics, vehicles: upsertById(logistics.vehicles || [], next) });
+      closeModal();
+      renderLogisticsPage();
+    });
+    modal.querySelector("#deleteVehicle")?.addEventListener("click", async () => {
+      const logistics = state.settings.logistics || { boxes: [], vehicles: [] };
+      await saveLogistics({ ...logistics, vehicles: (logistics.vehicles || []).filter((row) => row.id !== vehicle.id) });
+      closeModal();
+      renderLogisticsPage();
+    });
+  });
+}
+
 function renderProfile() {
   const user = state.currentUser;
   if (!user) return;
@@ -10366,12 +10694,12 @@ function renderProfile() {
           <button class="blue-btn action-btn" id="avatarPickBtn">${iconSvg("Profil")} Avatar</button>
           <input id="avatarFileInput" class="hidden" type="file" accept="image/*">
         </div>
+        <div class="profile-facts-inline">
+          <span><b>Telefon</b>${escapeHtml(user.phone || "-")}</span>
+          <span><b>Beitritt</b>${formatDate(user.joinedAt)}</span>
+          <span><b>Status</b>${escapeHtml(userAccountStatus(user))}</span>
+        </div>
       </article>
-      <section class="profile-mini-grid">
-        <article class="panel"><span>Telefon</span><strong>${escapeHtml(user.phone || "-")}</strong></article>
-        <article class="panel"><span>Beitritt</span><strong>${formatDate(user.joinedAt)}</strong></article>
-        <article class="panel"><span>Status</span><strong>${escapeHtml(userAccountStatus(user))}</strong></article>
-      </section>
       <section class="panel profile-tabs-panel">
         <div class="tabs-row">
           <button class="${state.profileTab === "Abmeldung" ? "tab-active" : ""}" data-profile-tab="Abmeldung">Abmeldung</button>
